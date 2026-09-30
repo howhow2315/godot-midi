@@ -1,72 +1,146 @@
-#!/usr/bin/env python
-import os
+from glob import glob
 
-def normalize_path(val, env):
-    return val if os.path.isabs(val) else os.path.join(env.Dir("#").abspath, val)
+ADDON_DIRECTORY = "addons/godot-fluidsynth"
+FLUIDSYNTH_SOURCE = "library/fluidsynth"
+FLUIDSYNTH_INSTALL = "build/fluidsynth"
 
-def validate_parent_dir(key, val, env):
-    if not os.path.isdir(normalize_path(os.path.dirname(val), env)):
-        raise UserError("'%s' is not a directory: %s" % (key, os.path.dirname(val)))
+GODOT_API_VERSION = "4.7"
 
-libname = "godotmidi"
-projectdir = "game"
-
-localEnv = Environment(tools=["default"], PLATFORM="")
-
-customs = ["custom.py"]
-customs = [os.path.abspath(path) for path in customs]
-
-opts = Variables(customs, ARGUMENTS)
-opts.Add(
-    BoolVariable(
-        key="compiledb",
-        help="Generate compilation DB (`compile_commands.json`) for external tools",
-        default=localEnv.get("compiledb", False),
-    )
+env = SConscript(
+    "library/godot-cpp/SConstruct",
+    {
+        "api_version": GODOT_API_VERSION,
+        # "symbols_visibility": "visible"
+    }
 )
-opts.Add(
-    PathVariable(
-        key="compiledb_file",
-        help="Path to a custom `compile_commands.json` file",
-        default=localEnv.get("compiledb_file", "compile_commands.json"),
-        validator=validate_parent_dir,
-    )
+env.Tool("fluidsynth", toolpath=["tools"])
+
+platform = env["platform"]
+arch = env["arch"]
+
+if platform not in ("linux", "windows", "macos"):
+    raise ValueError(f"Unsupported platform: {platform}")
+
+bin_directory = f"{ADDON_DIRECTORY}/bin/{platform}.{arch}"
+
+FLUIDSYNTH_ARTIFACTS = {
+    "linux": [
+        "lib/libfluidsynth.so",
+        "lib/libfluidsynth.so.3",
+        "lib/libfluidsynth.so.3.6.1",
+    ],
+    "windows": [
+        "bin/libfluidsynth-3.dll",
+        "lib/libfluidsynth-3.lib",
+    ],
+    "macos": [
+        "lib/libfluidsynth.dylib",
+        "lib/libfluidsynth.3.dylib",
+    ],
+}
+
+FLUIDSYNTH_LINK_LIBRARY = {
+    "linux": "lib/libfluidsynth.so",
+    "windows": "lib/libfluidsynth-3.lib",
+    "macos": "lib/libfluidsynth.dylib",
+}
+
+
+fluidsynth_targets = [f"{FLUIDSYNTH_INSTALL}/{artifact}" for artifact in FLUIDSYNTH_ARTIFACTS[platform]]
+fluidsynth_build = env.fluidsynth(fluidsynth_targets, FLUIDSYNTH_SOURCE)
+
+env.Append(
+    CPPPATH=[
+        "source",
+        f"{FLUIDSYNTH_INSTALL}/include",
+    ],
+    LIBPATH=[
+        f"{FLUIDSYNTH_INSTALL}/lib",
+        "library/godot-cpp/bin",
+    ],
 )
-opts.Update(localEnv)
 
-Help(opts.GenerateHelpText(localEnv))
+sources = glob("source/*.cpp")
+objects = env.SharedObject(sources)
+env.Depends(objects, fluidsynth_build)
 
-env = localEnv.Clone()
-env["compiledb"] = False
+suffix = env["suffix"]
 
-env.Tool("compilation_db")
-compilation_db = env.CompilationDatabase(
-    normalize_path(localEnv["compiledb_file"], localEnv)
+godot_cpp = File(f"library/godot-cpp/bin/libgodot-cpp{suffix}{env['LIBSUFFIX']}")
+fluidsynth = File(f"{FLUIDSYNTH_INSTALL}/{FLUIDSYNTH_LINK_LIBRARY[platform]}")
+
+lib_filename = (
+    f"{env.subst('$SHLIBPREFIX')}"
+    f"fluidsynth"
+    f"{suffix}"
+    f"{env.subst('$SHLIBSUFFIX')}"
 )
-env.Alias("compiledb", compilation_db)
-
-env = SConscript("godot-cpp/SConstruct", {"env": env, "customs": customs})
-
-env.Append(CPPPATH=["extension/src/", ".cmake/doctest/src/doctest/doctest/"])
-sources = Glob("extension/src/*.cpp")
-
-file = "{}{}{}".format(libname, env["suffix"], env["SHLIBSUFFIX"])
-
-if env["platform"] == "macos":
-    platlibname = "{}.{}.{}".format(libname, env["platform"], env["target"])
-    file = "{}.framework/{}".format(env["platform"], platlibname, platlibname)
-
-libraryfile = "bin/{}/{}".format(env["platform"], file)
-print("CCFLAGS: ", env['CCFLAGS'])
 
 library = env.SharedLibrary(
-    libraryfile,
-    source=sources,
+    f"{bin_directory}/{lib_filename}",
+    source=objects,
+    LIBS=[godot_cpp, fluidsynth],
 )
 
-copy = env.InstallAs("{}/addons/godot_midi/bin/{}/lib{}".format(projectdir, env["platform"], file), library)
+env.Depends(library, fluidsynth_build)
 
-default_args = [library, copy]
-if localEnv.get("compiledb", False):
-    default_args += [compilation_db]
-Default(*default_args)
+default_targets = [library]
+
+if platform == "linux":
+    runtime = env.Command(
+        f"{bin_directory}/libfluidsynth.so.3.6.1",
+        f"{FLUIDSYNTH_INSTALL}/lib/libfluidsynth.so.3.6.1",
+        Copy("$TARGET", "$SOURCE"),
+    )
+    env.Depends(runtime, fluidsynth_build)
+
+    soname = env.Command(
+        f"{bin_directory}/libfluidsynth.so.3",
+        runtime,
+        Action("ln -sf libfluidsynth.so.3.6.1 $TARGET"),
+    )
+    env.Depends(soname, runtime)
+    env.Depends(library, soname)
+
+    default_targets.extend([runtime, soname])
+
+elif platform == "windows":
+    runtime = env.Command(
+        f"{bin_directory}/libfluidsynth-3.dll",
+        f"{FLUIDSYNTH_INSTALL}/bin/libfluidsynth-3.dll",
+        Copy("$TARGET", "$SOURCE"),
+    )
+    env.Depends(runtime, fluidsynth_build)
+    env.Depends(library, runtime)
+
+    default_targets.append(runtime)
+
+elif platform == "macos":
+    runtime = env.Command(
+        f"{bin_directory}/libfluidsynth.3.dylib",
+        f"{FLUIDSYNTH_INSTALL}/lib/libfluidsynth.3.dylib",
+        Copy("$TARGET", "$SOURCE"),
+    )
+    env.Depends(runtime, fluidsynth_build)
+
+    dylib = env.Command(
+        f"{bin_directory}/libfluidsynth.dylib",
+        runtime,
+        Action("ln -sf libfluidsynth.3.dylib $TARGET"),
+    )
+    env.Depends(dylib, runtime)
+    env.Depends(library, dylib)
+
+    default_targets.extend([runtime, dylib])
+
+
+addons_source = ["license.md", "readme.md"]
+addons_files = env.Command(
+    [f"{ADDON_DIRECTORY}/{file}" for file in addons_source],
+    addons_source,
+    Copy(ADDON_DIRECTORY, addons_source),
+)
+
+default_targets.append(addons_files)
+Default(*default_targets)
+Alias("addons_files", addons_files)
