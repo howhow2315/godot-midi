@@ -1,13 +1,7 @@
-# Godot 4+ specific ignores
+# Godot 4+
 .godot/
-game/addons/godot_midi/bin/*
-.sconsign*.dblite
-/bin
-.gradle/
 
-.idea/
-
-# Binaries
+# binaries
 *.o
 *.os
 *.so
@@ -25,19 +19,14 @@ game/addons/godot_midi/bin/*
 *.idb
 *.exp
 
-tests/bin/*
+# build
+__pycache__
+build/
+export/
 
-# CMake build
-.cmake/**
-!.cmake/.gitkeep
-extension/build/
-extension/.cxx/
-extension/src/main/
+addons/godot-midi/bin
 
-# Other stuff
-*.log
-
-# GDExtension development
-extension_api.json
-
-*.exe
+# project
+*.sf2
+*.sf2.uid
+export_presets.cfg

@@ -17,11 +17,11 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="godot-midi"
 run/main_scene="uid://cf5sqk6dd4esg"
 config/features=PackedStringArray("4.7")
-config/icon="res://icon.png"
+config/icon="uid://br40o2df3pt6w"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/godot_midi/plugin.cfg")
+enabled=PackedStringArray("res://addons/godot-midi/plugin/plugin.cfg")
 
 [godots]
 

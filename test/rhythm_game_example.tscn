@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://c3xn8q7dt5mka"]
 
-[ext_resource type="Script" uid="uid://bjk4qar2msntq" path="res://rhythm_game_example.gd" id="1_taiko"]
-[ext_resource type="MIDIResource" uid="uid://mbidjexocb38" path="res://rhythm_game_track.mid" id="2_l24v2"]
-[ext_resource type="AudioStream" uid="uid://dauy484grjxep" path="res://rhythm_game_track.wav" id="3_ep50i"]
+[ext_resource type="Script" uid="uid://bjk4qar2msntq" path="res://test/rhythm_game_example.gd" id="1_taiko"]
+[ext_resource type="MIDIResource" uid="uid://mbidjexocb38" path="res://assets/midi/rhythm_game_track.mid" id="2_l24v2"]
+[ext_resource type="AudioStream" uid="uid://dauy484grjxep" path="res://assets/audio/rhythm_game_track.wav" id="3_ep50i"]
 
 [node name="RhythmGameExample" type="Node2D" unique_id=2006071931]
 script = ExtResource("1_taiko")

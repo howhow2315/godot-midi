@@ -3,12 +3,12 @@
 importer="com.nlaha.godotmidi"
 type="MIDIResource"
 uid="uid://cjy0ow4dt2fk4"
-path="res://.godot/imported/invent1.mid-737ee3c19d01213735678d8ee3783769.res"
+path="res://.godot/imported/invent1.mid-97f3689d6bdf8c06549f56b51ca205aa.res"
 
 [deps]
 
-source_file="res://invent1.mid"
-dest_files=["res://.godot/imported/invent1.mid-737ee3c19d01213735678d8ee3783769.res"]
+source_file="res://assets/midi/invent1.mid"
+dest_files=["res://.godot/imported/invent1.mid-97f3689d6bdf8c06549f56b51ca205aa.res"]
 
 [params]
 

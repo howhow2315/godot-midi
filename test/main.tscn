@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://by07748s86eil" path="res://test/music_visuals.gd" id="1_7bol8"]
 [ext_resource type="Shader" uid="uid://3i6gili8sext" path="res://assets/shaders/note_vis_shader.gdshader" id="2_uwn88"]
+[ext_resource type="MIDIResource" uid="uid://cjy0ow4dt2fk4" path="res://assets/midi/invent1.mid" id="3_bf7fm"]
 [ext_resource type="AudioStream" uid="uid://ln2lvchqtgly" path="res://assets/audio/invent1.wav" id="4_7mycd"]
 [ext_resource type="AudioStream" uid="uid://btbw2a07sdp51" path="res://assets/audio/melee.wav" id="5_gkc6h"]
 
@@ -45,9 +46,6 @@ render_priority = 0
 shader = ExtResource("2_uwn88")
 shader_parameter/color = Color(0.639216, 0.619608, 0.611765, 1)
 
-[sub_resource type="Resource" id="Resource_g1q4x"]
-metadata/__load_path__ = "res://invent1.mid"
-
 [sub_resource type="PhysicalSkyMaterial" id="PhysicalSkyMaterial_qbs84"]
 
 [sub_resource type="Sky" id="Sky_t5vpa"]
@@ -80,10 +78,10 @@ script = ExtResource("1_7bol8")
 note_materials = Array[Material]([SubResource("ShaderMaterial_2soq2"), SubResource("ShaderMaterial_33vtw"), SubResource("ShaderMaterial_jh5ke"), SubResource("ShaderMaterial_4arlw"), SubResource("ShaderMaterial_wg5fx"), SubResource("ShaderMaterial_gw6ig"), SubResource("ShaderMaterial_utwia"), SubResource("ShaderMaterial_grq4g")])
 
 [node name="MIDIPlayer" type="MIDIPlayer" parent="." unique_id=173321142]
-process_mode = 3
-midi = SubResource("Resource_g1q4x")
+midi = ExtResource("3_bf7fm")
 loop = true
 auto_stop = false
+process_mode = 3
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1512973600]
 transform = Transform3D(-0.392767, 0.353553, -0.848961, 0.480471, 0.866026, 0.138372, 0.784144, -0.353553, -0.510018, -2, 2, 2)
