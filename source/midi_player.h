@@ -20,6 +20,7 @@
 #include <godot_cpp/classes/audio_stream.hpp>
 
 #include <thread>
+#include <vector>
 
 #include "midi_resource.h"
 #include "midi_parser.h"
