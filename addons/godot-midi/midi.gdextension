@@ -9,8 +9,8 @@ android_aar_plugin = true
 linux.debug.x86_64 = "res://addons/godot-midi/bin/linux.x86_64/libmidi.linux.template_debug.x86_64.so"
 linux.release.x86_64 = "res://addons/godot-midi/bin/linux.x86_64/libmidi.linux.template_release.x86_64.so"
 
-windows.debug.x86_64 = "res://addons/godot-midi/bin/windows.x86_64/libmidi.windows.template_debug.x86_64.dll"
-windows.release.x86_64 = "res://addons/godot-midi/bin/windows.x86_64/libmidi.windows.template_release.x86_64.dll"
+windows.debug.x86_64 = "res://addons/godot-midi/bin/windows.x86_64/midi.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "res://addons/godot-midi/bin/windows.x86_64/midi.windows.template_release.x86_64.dll"
 
 macos.debug = "res://addons/godot-midi/bin/macos.universal/libmidi.macos.template_debug.framework"
 macos.release = "res://addons/godot-midi/bin/macos.universal/libmidi.macos.template_release.framework"
