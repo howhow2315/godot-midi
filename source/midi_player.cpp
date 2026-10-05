@@ -1,570 +1,520 @@
-#include "midi_player.h"
+#include "midi_player.hpp"
 
 #define DEFAULT_MIDI_TEMPO 500000
 
-MIDIPlayer::MIDIPlayer()
-{
-    // initialize variables
-    this->current_time = 0;
-    this->prev_track_times = Array();
-    this->track_index_offsets = Array();
+MIDIPlayer::MIDIPlayer() {
+  // initialize variables
+  this->current_time = 0;
+  this->prev_track_times = Array();
+  this->track_index_offsets = Array();
 
-    this->speed_scale = 1;
-    this->loop = false;
-    this->state = PlayerState::Stopped;
+  this->speed_scale = 1;
+  this->loop = false;
+  this->state = PlayerState::Stopped;
 
-    this->note_offset = 0;
-    this->note_cache = Array();
+  this->note_offset = 0;
+  this->note_cache = Array();
 
-    this->audio_output_latency = AudioServer::get_singleton()->get_output_latency();
+  this->audio_output_latency =
+      AudioServer::get_singleton()->get_output_latency();
 
-    this->playback_thread = std::thread();
-    this->has_asp = false;
+  this->playback_thread = std::thread();
+  this->has_asp = false;
 
-    this->longest_asp = nullptr;
-    this->asps = std::vector<AudioStreamPlayer *>();
+  this->longest_asp = nullptr;
+  this->asps = std::vector<AudioStreamPlayer *>();
 
-    // disable process in the editor
-    if (Engine::get_singleton()->is_editor_hint())
-    {
-        set_process_mode(ProcessMode::PROCESS_MODE_DISABLED);
-    }
-    else
-    {
-        set_process_mode(ProcessMode::PROCESS_MODE_ALWAYS);
-    }
+  // disable process in the editor
+  if (Engine::get_singleton()->is_editor_hint()) {
+    set_process_mode(ProcessMode::PROCESS_MODE_DISABLED);
+  } else {
+    set_process_mode(ProcessMode::PROCESS_MODE_ALWAYS);
+  }
 }
 
-MIDIPlayer::~MIDIPlayer()
-{
-    this->state.store(PlayerState::Stopped);
-    // clean up thread
-    if (this->playback_thread.joinable())
-    {
-        this->playback_thread.join();
-    }
+MIDIPlayer::~MIDIPlayer() {
+  this->state.store(PlayerState::Stopped);
+  // clean up thread
+  if (this->playback_thread.joinable()) {
+    this->playback_thread.join();
+  }
 }
 
 /// @brief Set the midi resource to play and start the playback thread
-void MIDIPlayer::play()
-{
-    if (this->midi == nullptr)
-    {
-        UtilityFunctions::printerr("[GodotMIDI] No midi resource set");
-        return;
+void MIDIPlayer::play() {
+  if (this->midi == nullptr) {
+    UtilityFunctions::printerr("[GodotMIDI] No midi resource set");
+    return;
+  }
+
+  // resize track index offsets and previous track times
+  this->track_index_offsets.resize(this->midi->get_track_count());
+  this->prev_track_times.resize(this->midi->get_track_count());
+  // set initial prev_track_times to zero
+  for (uint64_t i = 0; i < this->midi->get_track_count(); i++) {
+    this->prev_track_times[i] = 0;
+  }
+
+  this->state.store(PlayerState::Playing);
+  UtilityFunctions::print("[GodotMIDI] Playing");
+
+  // start the playback thread without the audio stream player
+  this->playback_thread = std::thread(&MIDIPlayer::threaded_playback, this);
+
+  // if the audio stream player is set, start playing the audio
+  if (this->has_asp) {
+    for (auto asp : this->asps) {
+      asp->play();
     }
-
-    // resize track index offsets and previous track times
-    this->track_index_offsets.resize(this->midi->get_track_count());
-    this->prev_track_times.resize(this->midi->get_track_count());
-    // set initial prev_track_times to zero
-    for (uint64_t i = 0; i < this->midi->get_track_count(); i++)
-    {
-        this->prev_track_times[i] = 0;
-    }
-
-    this->state.store(PlayerState::Playing);
-    UtilityFunctions::print("[GodotMIDI] Playing");
-
-    // start the playback thread without the audio stream player
-    this->playback_thread = std::thread(&MIDIPlayer::threaded_playback, this);
-
-    // if the audio stream player is set, start playing the audio
-    if (this->has_asp)
-    {
-        for (auto asp : this->asps)
-        {
-            asp->play();
-        }
-    }
+  }
 }
 
 /// @brief Stop the midi playback and reset the clock
-void MIDIPlayer::stop()
-{
-    stop_internal(this->auto_stop);
-}
+void MIDIPlayer::stop() { stop_internal(this->auto_stop); }
 
 /// @brief Internal function for stopping the midi playback
-void MIDIPlayer::stop_internal(bool stop_asp = true)
-{
-    if (this->midi == nullptr)
-    {
-        UtilityFunctions::printerr("[GodotMIDI] No midi resource set");
-        return;
-    }
+void MIDIPlayer::stop_internal(bool stop_asp = true) {
+  if (this->midi == nullptr) {
+    UtilityFunctions::printerr("[GodotMIDI] No midi resource set");
+    return;
+  }
 
-    // reset time to zero
-    this->current_time = 0;
-    this->prev_track_times.clear();
-    this->prev_track_times.resize(this->midi->get_track_count());
-    this->track_index_offsets.clear();
-    this->track_index_offsets.resize(this->midi->get_track_count());
-    this->state.store(PlayerState::Stopped);
-    UtilityFunctions::print("[GodotMIDI] Stopped");
+  // reset time to zero
+  this->current_time = 0;
+  this->prev_track_times.clear();
+  this->prev_track_times.resize(this->midi->get_track_count());
+  this->track_index_offsets.clear();
+  this->track_index_offsets.resize(this->midi->get_track_count());
+  this->state.store(PlayerState::Stopped);
+  UtilityFunctions::print("[GodotMIDI] Stopped");
 
-    // clean up thread
-    if (this->playback_thread.joinable())
-    {
-        this->playback_thread.join();
-    }
+  // clean up thread
+  if (this->playback_thread.joinable()) {
+    this->playback_thread.join();
+  }
 
-    // if the audio stream player is set, stop playing the audio
-    if (this->has_asp && this->auto_stop)
-    {
-        for (auto asp : this->asps)
-        {
-            asp->stop();
-        }
+  // if the audio stream player is set, stop playing the audio
+  if (this->has_asp && this->auto_stop) {
+    for (auto asp : this->asps) {
+      asp->stop();
     }
+  }
 }
 
 /// @brief Called when the midi player is set to loop
 /// and the midi has finished playing
-void MIDIPlayer::loop_internal()
-{
-    // always auto stop when looping
-    this->stop_internal(true);
-    this->play();
+void MIDIPlayer::loop_internal() {
+  // always auto stop when looping
+  this->stop_internal(true);
+  this->play();
 }
 
 /// @brief Pause the midi playback
-void MIDIPlayer::pause()
-{
-    this->state.store(PlayerState::Paused);
-    UtilityFunctions::print("[GodotMIDI] Paused");
+void MIDIPlayer::pause() {
+  this->state.store(PlayerState::Paused);
+  UtilityFunctions::print("[GodotMIDI] Paused");
 
-    // if the audio stream player is set, pause the audio
-    if (this->has_asp)
-    {
-        for (auto asp : this->asps)
-        {
-            asp->set_stream_paused(true);
-        }
+  // if the audio stream player is set, pause the audio
+  if (this->has_asp) {
+    for (auto asp : this->asps) {
+      asp->set_stream_paused(true);
     }
+  }
 }
 
 /// @brief Resume the midi playback
-void MIDIPlayer::resume()
-{
-    this->state.store(PlayerState::Playing);
-    UtilityFunctions::print("[GodotMIDI] Resumed");
+void MIDIPlayer::resume() {
+  this->state.store(PlayerState::Playing);
+  UtilityFunctions::print("[GodotMIDI] Resumed");
 
-    // if the audio stream player is set, resume the audio
-    if (this->has_asp)
-    {
-        for (auto asp : this->asps)
-        {
-            asp->set_stream_paused(false);
-        }
+  // if the audio stream player is set, resume the audio
+  if (this->has_asp) {
+    for (auto asp : this->asps) {
+      asp->set_stream_paused(false);
     }
+  }
 }
 
 /// @brief Links the audio stream players to the midi player
 /// @param asps
-void MIDIPlayer::link_audio_stream_player(Array asps)
-{
-    // extract audio stream players from the array
-    this->asps.resize(asps.size());
-    double longest_time = 0;
-    for (int i = 0; i < asps.size(); i++)
-    {
-        AudioStreamPlayer *asp = Object::cast_to<AudioStreamPlayer>(asps[i]);
-        if (asp != nullptr)
-        {
-            Ref<AudioStream> asp_stream = asp->get_stream();
-            if (asp_stream.is_null() || asp_stream->get_length() == 0 || asp_stream.is_valid() == false)
-            {
-                UtilityFunctions::printerr("[GodotMIDI] Invalid AudioStream in link_audio_stream_player at index " + String::num_int64(i));
-                continue;
-            }
+void MIDIPlayer::link_audio_stream_player(Array asps) {
+  // extract audio stream players from the array
+  this->asps.resize(asps.size());
+  double longest_time = 0;
+  for (int i = 0; i < asps.size(); i++) {
+    AudioStreamPlayer *asp = Object::cast_to<AudioStreamPlayer>(asps[i]);
+    if (asp != nullptr) {
+      Ref<AudioStream> asp_stream = asp->get_stream();
+      if (asp_stream.is_null() || asp_stream->get_length() == 0 ||
+          asp_stream.is_valid() == false) {
+        UtilityFunctions::printerr("[GodotMIDI] Invalid AudioStream in "
+                                   "link_audio_stream_player at index " +
+                                   String::num_int64(i));
+        continue;
+      }
 
-            // get the longest audio stream player
-            double time = asp_stream->get_length();
-            if (time > longest_time)
-            {
-                longest_time = time;
-                this->longest_asp = asp;
-            }
+      // get the longest audio stream player
+      double time = asp_stream->get_length();
+      if (time > longest_time) {
+        longest_time = time;
+        this->longest_asp = asp;
+      }
 
-            this->asps[i] = asp;
-            this->has_asp = true;
-        }
+      this->asps[i] = asp;
+      this->has_asp = true;
     }
+  }
 
-    if (longest_asp == nullptr)
-    {
-        UtilityFunctions::printerr("[GodotMIDI] No valid AudioStreamPlayers linked in link_audio_stream_player");
-        this->has_asp = false;
-        return;
-    }
+  if (longest_asp == nullptr) {
+    UtilityFunctions::printerr("[GodotMIDI] No valid AudioStreamPlayers linked "
+                               "in link_audio_stream_player");
+    this->has_asp = false;
+    return;
+  }
 
-    longest_asp->connect("finished", Callable(this, "loop_or_stop_thread_safe"));
+  longest_asp->connect("finished", Callable(this, "loop_or_stop_thread_safe"));
 }
 
 /// @brief Process function that is called every frame
 /// @param delta
-void MIDIPlayer::_process(float delta)
-{
-    // check to make sure the scene tree isn't paused
-    if (this->get_tree()->is_paused())
-    {
-        if (this->state.load() == PlayerState::Playing)
-        {
-            // if it is, pause the player
-            this->pause();
-        }
+void MIDIPlayer::_process(float delta) {
+  // check to make sure the scene tree isn't paused
+  if (this->get_tree()->is_paused()) {
+    if (this->state.load() == PlayerState::Playing) {
+      // if it is, pause the player
+      this->pause();
     }
-    else
-    {
-        // if the scene tree isn't paused, check if the player is paused
-        if (this->state.load() == PlayerState::Paused)
-        {
-            // and unpause if it is
-            this->resume();
-        }
+  } else {
+    // if the scene tree isn't paused, check if the player is paused
+    if (this->state.load() == PlayerState::Paused) {
+      // and unpause if it is
+      this->resume();
     }
+  }
 }
 
 /// @brief Function that is run in a separate thread to play back the midi
 /// @param midi_player
-void MIDIPlayer::threaded_playback()
-{
-    // Lambda function to get the current time in microseconds
-    const auto get_now = []() -> long long
-    {
-        return Time::get_singleton()->get_ticks_usec();
-    };
+void MIDIPlayer::threaded_playback() {
+  // Lambda function to get the current time in microseconds
+  const auto get_now = []() -> long long {
+    return Time::get_singleton()->get_ticks_usec();
+  };
 
-    // print
-    UtilityFunctions::print("[GodotMIDI] Playback thread started");
-    double delta = 0;
-    while (state.load() == PlayerState::Playing || state.load() == PlayerState::Paused)
-    {
-        const long long start_time = get_now();
+  // print
+  UtilityFunctions::print("[GodotMIDI] Playback thread started");
+  double delta = 0;
+  while (state.load() == PlayerState::Playing ||
+         state.load() == PlayerState::Paused) {
+    const long long start_time = get_now();
 
-        if (state.load() == PlayerState::Paused)
-        {
-            // sleep for 1ms if we're paused
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-            continue;
-        }
-
-        // get the delta from the audio stream player if it's set
-        if (this->has_asp)
-        {
-            double time = longest_asp->get_playback_position() + AudioServer::get_singleton()->get_time_since_last_mix();
-            time -= audio_output_latency;
-            delta = time - current_time;
-        }
-
-        // delta should never be negative
-        delta = delta > 0 ? delta : 0;
-
-        // process the midi player
-        process_delta(delta);
-
-        if (delta < 0.001)
-        {
-            // sleep for 1ms if we're going too fast
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
-        }
-
-        if (!this->has_asp)
-        {
-            // if the audio stream player is not set, compute the delta manually
-            long long time_now = get_now();
-            delta = static_cast<double>(time_now - start_time) / 1000000.0;
-        }
+    if (state.load() == PlayerState::Paused) {
+      // sleep for 1ms if we're paused
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+      continue;
     }
+
+    // get the delta from the audio stream player if it's set
+    if (this->has_asp) {
+      double time = longest_asp->get_playback_position() +
+                    AudioServer::get_singleton()->get_time_since_last_mix();
+      time -= audio_output_latency;
+      delta = time - current_time;
+    }
+
+    // delta should never be negative
+    delta = delta > 0 ? delta : 0;
+
+    // process the midi player
+    process_delta(delta);
+
+    if (delta < 0.001) {
+      // sleep for 1ms if we're going too fast
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+
+    if (!this->has_asp) {
+      // if the audio stream player is not set, compute the delta manually
+      long long time_now = get_now();
+      delta = static_cast<double>(time_now - start_time) / 1000000.0;
+    }
+  }
 }
 
 /// @brief Loop the midi player or stop it if looping is disabled
-void MIDIPlayer::loop_or_stop_thread_safe()
-{
-    call_thread_safe("emit_signal", "finished");
+void MIDIPlayer::loop_or_stop_thread_safe() {
+  call_thread_safe("emit_signal", "finished");
 
-    if (this->loop == false)
-    {
-        this->call_thread_safe("stop");
-        UtilityFunctions::print("[GodotMIDI] Finished, stopping");
-        return;
-    }
-    // set state to stopped, this prevents issues while waiting for
-    // the below function to sync with the main thread
-    this->state.store(PlayerState::Stopped);
-    this->call_thread_safe("loop_internal");
-    UtilityFunctions::print("[GodotMIDI] Finished, looping");
+  if (this->loop == false) {
+    this->call_thread_safe("stop");
+    UtilityFunctions::print("[GodotMIDI] Finished, stopping");
+    return;
+  }
+  // set state to stopped, this prevents issues while waiting for
+  // the below function to sync with the main thread
+  this->state.store(PlayerState::Stopped);
+  this->call_thread_safe("loop_internal");
+  UtilityFunctions::print("[GodotMIDI] Finished, looping");
 }
 
 /// @brief Process one delta of time for the midi player
 /// @param delta the time in seconds to process
-void MIDIPlayer::process_delta(double delta)
-{
-    if (this->midi == nullptr)
-    {
-        UtilityFunctions::printerr("[GodotMIDI] No midi resource set");
-        // stop the player if there's no midi resource
-        this->state.store(PlayerState::Stopped);
-        this->call_thread_safe("stop");
-        return;
+void MIDIPlayer::process_delta(double delta) {
+  if (this->midi == nullptr) {
+    UtilityFunctions::printerr("[GodotMIDI] No midi resource set");
+    // stop the player if there's no midi resource
+    this->state.store(PlayerState::Stopped);
+    this->call_thread_safe("stop");
+    return;
+  }
+
+  // process each track
+  bool has_more_events = false;
+  for (uint64_t i = 0; i < this->midi->get_track_count(); i++) {
+    // get events for this track
+    Array events = this->midi->get_tracks()[i].get("events");
+
+    // starting at index offset, check if there's an event at the current time
+    int index_off = this->track_index_offsets[i];
+
+    // if we have more events, don't stop yet
+    if (events.size() - 1 > index_off) {
+      has_more_events = true;
     }
 
-    // process each track
-    bool has_more_events = false;
-    for (uint64_t i = 0; i < this->midi->get_track_count(); i++)
-    {
-        // get events for this track
-        Array events = this->midi->get_tracks()[i].get("events");
+    // search forward in time
+    for (uint64_t j = index_off; j < events.size(); j++) {
+      Dictionary event = events[j];
+      double event_delta = event.get("delta", 0);
 
-        // starting at index offset, check if there's an event at the current time
-        int index_off = this->track_index_offsets[i];
+      // apply tempo (or fixed SMPTE rate)
+      double microseconds_per_tick = this->get_microseconds_per_tick();
+      // delta time is stored as ticks, convert to microseconds
+      event_delta = event_delta * microseconds_per_tick;
 
-        // if we have more events, don't stop yet
-        if (events.size() - 1 > index_off)
-        {
-            has_more_events = true;
+      // convert to seconds for ease of use
+      double event_delta_seconds = event_delta / 1000000.0;
+      event_delta_seconds /= speed_scale;
+      double event_absolute_time =
+          event_delta_seconds + static_cast<double>(this->prev_track_times[i]);
+
+      if (this->current_time + this->note_offset >= event_absolute_time) {
+        // start at next available event (index offset + 1, since index offset
+        // is the last event we processed)
+        this->track_index_offsets[i] = j + 1;
+        String event_type = event.get("type", "undef");
+
+        if (event_type == "meta") {
+          // print note index offset, time, j and absolute time, track, subtype
+          // and delta UtilityFunctions::print("Note index offset: " +
+          // String::num_int64(index_off) + " j: " + String::num_int64(j) + "
+          // Time: " + String::num(this->current_time) + " Absolute time: " +
+          // String::num(event_absolute_time) + " Track: " +
+          // String::num_int64(i) + " Subtype: " +
+          // String::num(event.get("subtype", 0)) + " Delta: " +
+          // String::num(event_delta_seconds));
+
+          // ingest meta events such as tempo changes
+          // we need to do this now as opposed to when the midi file is loaded
+          // to allow for tempo changes during playback
+          int meta_type = event.get("subtype", 0);
+
+          if (meta_type ==
+              MIDIParser::MIDIEventMeta::MIDIMetaEventType::SetTempo) {
+            this->midi->set_tempo(
+                static_cast<int>(event.get("data", DEFAULT_MIDI_TEMPO)));
+
+            // print tempo
+            // UtilityFunctions::print("[GodotMIDI] Tempo: " +
+            // String::num(this->midi->get_tempo()));
+          }
+
+          // TODO: support time signature changes
+          // these should be handled in the same way as tempo changes
+          // to allow for changes during playback (even though it isn't usually
+          // necessary)
+
+          call_thread_safe("emit_signal", "meta", event, i);
+        } else if (event_type == "note") {
+          call_thread_safe("emit_signal", "note", event, i);
+          // print note index offset, time, j, absolute time, track, subtype and
+          // delta UtilityFunctions::print("Note index offset: " +
+          // String::num_int64(index_off) + " j: " + String::num_int64(j) + "
+          // Time: " + String::num(this->current_time) + " Absolute time: " +
+          // String::num(event_absolute_time) + " Track: " +
+          // String::num_int64(i) + " Subtype: " +
+          // String::num(event.get("subtype", 0)) + " Delta: " +
+          // String::num(event_delta_seconds));
+        } else if (event_type == "system") {
+          call_thread_safe("emit_signal", "system", event, i);
+        } else {
+          UtilityFunctions::printerr("[GodotMIDI] Invalid event type");
         }
 
-        // search forward in time
-        for (uint64_t j = index_off; j < events.size(); j++)
-        {
-            Dictionary event = events[j];
-            double event_delta = event.get("delta", 0);
-
-            // apply tempo (or fixed SMPTE rate)
-            double microseconds_per_tick = this->get_microseconds_per_tick();
-            // delta time is stored as ticks, convert to microseconds
-            event_delta = event_delta * microseconds_per_tick;
-
-            // convert to seconds for ease of use
-            double event_delta_seconds = event_delta / 1000000.0;
-            event_delta_seconds /= speed_scale;
-            double event_absolute_time = event_delta_seconds + static_cast<double>(this->prev_track_times[i]);
-
-            if (this->current_time + this->note_offset >= event_absolute_time)
-            {
-                // start at next available event (index offset + 1, since index offset is the last event we processed)
-                this->track_index_offsets[i] = j + 1;
-                String event_type = event.get("type", "undef");
-
-                if (event_type == "meta")
-                {
-                    // print note index offset, time, j and absolute time, track, subtype and delta
-                    // UtilityFunctions::print("Note index offset: " + String::num_int64(index_off) + " j: " + String::num_int64(j) + " Time: " + String::num(this->current_time) + " Absolute time: " + String::num(event_absolute_time) + " Track: " + String::num_int64(i) + " Subtype: " + String::num(event.get("subtype", 0)) + " Delta: " + String::num(event_delta_seconds));
-
-                    // ingest meta events such as tempo changes
-                    // we need to do this now as opposed to when the midi file is loaded
-                    // to allow for tempo changes during playback
-                    int meta_type = event.get("subtype", 0);
-
-                    if (meta_type == MIDIParser::MIDIEventMeta::MIDIMetaEventType::SetTempo)
-                    {
-                        this->midi->set_tempo(static_cast<int>(event.get("data", DEFAULT_MIDI_TEMPO)));
-
-                        // print tempo
-                        // UtilityFunctions::print("[GodotMIDI] Tempo: " + String::num(this->midi->get_tempo()));
-                    }
-
-                    // TODO: support time signature changes
-                    // these should be handled in the same way as tempo changes
-                    // to allow for changes during playback (even though it isn't usually necessary)
-
-                    call_thread_safe("emit_signal", "meta", event, i);
-                }
-                else if (event_type == "note")
-                {
-                    call_thread_safe("emit_signal", "note", event, i);
-                    // print note index offset, time, j, absolute time, track, subtype and delta
-                    // UtilityFunctions::print("Note index offset: " + String::num_int64(index_off) + " j: " + String::num_int64(j) + " Time: " + String::num(this->current_time) + " Absolute time: " + String::num(event_absolute_time) + " Track: " + String::num_int64(i) + " Subtype: " + String::num(event.get("subtype", 0)) + " Delta: " + String::num(event_delta_seconds));
-                }
-                else if (event_type == "system")
-                {
-                    call_thread_safe("emit_signal", "system", event, i);
-                }
-                else
-                {
-                    UtilityFunctions::printerr("[GodotMIDI] Invalid event type");
-                }
-
-                // store time to look for events after this one
-                this->prev_track_times[i] = event_absolute_time;
-            }
-            else
-            {
-                // print
-                // UtilityFunctions::print("[GodotMIDI] No more events on this track at this time");
-                // we've gone too far, break and move to the next track
-                break;
-            }
-        }
+        // store time to look for events after this one
+        this->prev_track_times[i] = event_absolute_time;
+      } else {
+        // print
+        // UtilityFunctions::print("[GodotMIDI] No more events on this track at
+        // this time"); we've gone too far, break and move to the next track
+        break;
+      }
     }
+  }
 
-    if (has_more_events == false)
-    {
-        loop_or_stop_thread_safe();
-    }
+  if (has_more_events == false) {
+    loop_or_stop_thread_safe();
+  }
 
-    // increment time, current time will hold the
-    // number of seconds since starting
-    this->current_time += delta;
+  // increment time, current time will hold the
+  // number of seconds since starting
+  this->current_time += delta;
 }
 
-/// @brief Rebuilds the note timing cache used by get_notes_in_range()/get_notes_around().
-/// Merges every track's events into a single tick-ordered timeline (since
-/// tempo changes apply globally, not per-track) and walks it once to compute
-/// each note on/off event's absolute time in seconds. Safe to call from the
-/// main thread whenever the midi resource changes; does not touch any state
-/// used by the playback thread
-void MIDIPlayer::build_note_cache()
-{
-    this->note_cache.clear();
+/// @brief Rebuilds the note timing cache used by
+/// get_notes_in_range()/get_notes_around(). Merges every track's events into a
+/// single tick-ordered timeline (since tempo changes apply globally, not
+/// per-track) and walks it once to compute each note on/off event's absolute
+/// time in seconds. Safe to call from the main thread whenever the midi
+/// resource changes; does not touch any state used by the playback thread
+void MIDIPlayer::build_note_cache() {
+  this->note_cache.clear();
 
-    if (this->midi == nullptr)
-    {
-        return;
+  if (this->midi == nullptr) {
+    return;
+  }
+
+  // merge every track's events into a single array tagged with their
+  // absolute tick position, so they can be sorted into one global timeline
+  Array all_events;
+
+  int64_t track_count = this->midi->get_track_count();
+  for (int64_t t = 0; t < track_count; t++) {
+    Array events = this->midi->get_tracks()[t].get("events");
+    double tick_accum = 0.0;
+
+    for (int64_t i = 0; i < events.size(); i++) {
+      Dictionary event = events[i];
+      double delta = event.get("delta", 0);
+      tick_accum += delta;
+
+      String type = event.get("type", "");
+      int subtype = event.get("subtype", -1);
+      bool is_tempo =
+          type == "meta" &&
+          subtype ==
+              (int)MIDIParser::MIDIEventMeta::MIDIMetaEventType::SetTempo;
+
+      Dictionary timed_event = event.duplicate();
+      timed_event["tick"] = tick_accum;
+      timed_event["is_tempo"] = is_tempo;
+      all_events.push_back(timed_event);
+    }
+  }
+
+  // sort by absolute tick position; tempo-change events are ordered before
+  // other events at the exact same tick so they take effect in time for
+  // anything happening simultaneously (see _compare_tick_events)
+  all_events.sort_custom(Callable(this, "_compare_tick_events"));
+
+  double time_seconds = 0.0;
+  double last_tick = 0.0;
+  int32_t current_tempo = DEFAULT_MIDI_TEMPO;
+
+  for (int64_t i = 0; i < all_events.size(); i++) {
+    Dictionary event = all_events[i];
+    double tick = event.get("tick", 0.0);
+    bool is_tempo = event.get("is_tempo", false);
+
+    double delta_ticks = tick - last_tick;
+    double microseconds_per_tick =
+        this->get_microseconds_per_tick(current_tempo);
+    time_seconds += (delta_ticks * microseconds_per_tick) / 1000000.0;
+    last_tick = tick;
+
+    if (is_tempo) {
+      current_tempo = (int32_t)event.get("data", DEFAULT_MIDI_TEMPO);
     }
 
-    // merge every track's events into a single array tagged with their
-    // absolute tick position, so they can be sorted into one global timeline
-    Array all_events;
-
-    int64_t track_count = this->midi->get_track_count();
-    for (int64_t t = 0; t < track_count; t++)
-    {
-        Array events = this->midi->get_tracks()[t].get("events");
-        double tick_accum = 0.0;
-
-        for (int64_t i = 0; i < events.size(); i++)
-        {
-            Dictionary event = events[i];
-            double delta = event.get("delta", 0);
-            tick_accum += delta;
-
-            String type = event.get("type", "");
-            int subtype = event.get("subtype", -1);
-            bool is_tempo = type == "meta" && subtype == (int)MIDIParser::MIDIEventMeta::MIDIMetaEventType::SetTempo;
-
-            Dictionary timed_event = event.duplicate();
-            timed_event["tick"] = tick_accum;
-            timed_event["is_tempo"] = is_tempo;
-            all_events.push_back(timed_event);
-        }
+    String type = event.get("type", "");
+    if (type != "note") {
+      continue;
     }
 
-    // sort by absolute tick position; tempo-change events are ordered before
-    // other events at the exact same tick so they take effect in time for
-    // anything happening simultaneously (see _compare_tick_events)
-    all_events.sort_custom(Callable(this, "_compare_tick_events"));
-
-    double time_seconds = 0.0;
-    double last_tick = 0.0;
-    int32_t current_tempo = DEFAULT_MIDI_TEMPO;
-
-    for (int64_t i = 0; i < all_events.size(); i++)
-    {
-        Dictionary event = all_events[i];
-        double tick = event.get("tick", 0.0);
-        bool is_tempo = event.get("is_tempo", false);
-
-        double delta_ticks = tick - last_tick;
-        double microseconds_per_tick = this->get_microseconds_per_tick(current_tempo);
-        time_seconds += (delta_ticks * microseconds_per_tick) / 1000000.0;
-        last_tick = tick;
-
-        if (is_tempo)
-        {
-            current_tempo = (int32_t)event.get("data", DEFAULT_MIDI_TEMPO);
-        }
-
-        String type = event.get("type", "");
-        if (type != "note")
-        {
-            continue;
-        }
-
-        int subtype = event.get("subtype", -1);
-        if (subtype != (int)MIDIParser::MIDIEventNote::NoteType::NoteOn &&
-            subtype != (int)MIDIParser::MIDIEventNote::NoteType::NoteOff)
-        {
-            // only note on/off events are cached; controller, pitch bend,
-            // aftertouch, etc. aren't "notes" for rhythm-game purposes
-            continue;
-        }
-
-        Dictionary note_event = event.duplicate();
-        note_event.erase("tick");
-        note_event.erase("is_tempo");
-
-        // per MIDI convention, a NoteOn with velocity 0 is really a NoteOff;
-        // "active" tells the caller whether this is an actual note trigger
-        int velocity = note_event.get("data", 0);
-        bool active = subtype == (int)MIDIParser::MIDIEventNote::NoteType::NoteOn && velocity > 0;
-        note_event["active"] = active;
-        note_event["time"] = time_seconds;
-
-        this->note_cache.push_back(note_event);
+    int subtype = event.get("subtype", -1);
+    if (subtype != (int)MIDIParser::MIDIEventNote::NoteType::NoteOn &&
+        subtype != (int)MIDIParser::MIDIEventNote::NoteType::NoteOff) {
+      // only note on/off events are cached; controller, pitch bend,
+      // aftertouch, etc. aren't "notes" for rhythm-game purposes
+      continue;
     }
+
+    Dictionary note_event = event.duplicate();
+    note_event.erase("tick");
+    note_event.erase("is_tempo");
+
+    // per MIDI convention, a NoteOn with velocity 0 is really a NoteOff;
+    // "active" tells the caller whether this is an actual note trigger
+    int velocity = note_event.get("data", 0);
+    bool active = subtype == (int)MIDIParser::MIDIEventNote::NoteType::NoteOn &&
+                  velocity > 0;
+    note_event["active"] = active;
+    note_event["time"] = time_seconds;
+
+    this->note_cache.push_back(note_event);
+  }
 }
 
 /// @brief Returns all cached note events whose absolute time (shifted by
 /// note_offset) falls within [start_time, end_time]
 /// @param start_time start of the query window, in seconds
 /// @param end_time end of the query window, in seconds
-Array MIDIPlayer::get_notes_in_range(double start_time, double end_time)
-{
-    Array result;
+Array MIDIPlayer::get_notes_in_range(double start_time, double end_time) {
+  Array result;
 
-    if (start_time > end_time)
-    {
-        double tmp = start_time;
-        start_time = end_time;
-        end_time = tmp;
+  if (start_time > end_time) {
+    double tmp = start_time;
+    start_time = end_time;
+    end_time = tmp;
+  }
+
+  // shift the query window by -note_offset instead of adjusting every
+  // cached entry, since note_cache is stored in raw (unshifted) time
+  double query_start = start_time - this->note_offset;
+  double query_end = end_time - this->note_offset;
+
+  int64_t count = this->note_cache.size();
+
+  // binary search for the first entry whose time is >= query_start;
+  // note_cache is kept sorted ascending by time by build_note_cache()
+  int64_t low = 0;
+  int64_t high = count;
+  while (low < high) {
+    int64_t mid = low + (high - low) / 2;
+    Dictionary entry = this->note_cache[mid];
+    double entry_time = entry.get("time", 0.0);
+    if (entry_time < query_start) {
+      low = mid + 1;
+    } else {
+      high = mid;
+    }
+  }
+
+  for (int64_t i = low; i < count; i++) {
+    Dictionary note_event = this->note_cache[i];
+    double time = note_event.get("time", 0.0);
+
+    if (time > query_end) {
+      // sorted ascending, nothing further can match
+      break;
     }
 
-    // shift the query window by -note_offset instead of adjusting every
-    // cached entry, since note_cache is stored in raw (unshifted) time
-    double query_start = start_time - this->note_offset;
-    double query_end = end_time - this->note_offset;
+    Dictionary result_event = note_event.duplicate();
+    result_event["time"] = time + this->note_offset;
+    result.push_back(result_event);
+  }
 
-    int64_t count = this->note_cache.size();
-
-    // binary search for the first entry whose time is >= query_start;
-    // note_cache is kept sorted ascending by time by build_note_cache()
-    int64_t low = 0;
-    int64_t high = count;
-    while (low < high)
-    {
-        int64_t mid = low + (high - low) / 2;
-        Dictionary entry = this->note_cache[mid];
-        double entry_time = entry.get("time", 0.0);
-        if (entry_time < query_start)
-        {
-            low = mid + 1;
-        }
-        else
-        {
-            high = mid;
-        }
-    }
-
-    for (int64_t i = low; i < count; i++)
-    {
-        Dictionary note_event = this->note_cache[i];
-        double time = note_event.get("time", 0.0);
-
-        if (time > query_end)
-        {
-            // sorted ascending, nothing further can match
-            break;
-        }
-
-        Dictionary result_event = note_event.duplicate();
-        result_event["time"] = time + this->note_offset;
-        result.push_back(result_event);
-    }
-
-    return result;
+  return result;
 }
 
 /// @brief Convenience wrapper for querying a window around a specific
@@ -572,7 +522,7 @@ Array MIDIPlayer::get_notes_in_range(double start_time, double end_time)
 /// @param time the center timestamp, in seconds
 /// @param window_before how far before `time` to include, in seconds
 /// @param window_after how far after `time` to include, in seconds
-Array MIDIPlayer::get_notes_around(double time, double window_before, double window_after)
-{
-    return this->get_notes_in_range(time - window_before, time + window_after);
+Array MIDIPlayer::get_notes_around(double time, double window_before,
+                                   double window_after) {
+  return this->get_notes_in_range(time - window_before, time + window_after);
 }
