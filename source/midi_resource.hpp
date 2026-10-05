@@ -13,7 +13,7 @@
 #include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
-#include "midi_resource.hpp"
+#include <godot_cpp/classes/input_event_midi.hpp>
 
 using namespace godot;
 
@@ -81,6 +81,11 @@ protected:
                          &MIDIResource::load_file);
     ClassDB::bind_method(D_METHOD("save_file", "path", "resource"),
                          &MIDIResource::save_file);
+
+    ClassDB::bind_static_method(
+        "MIDIResource",
+        D_METHOD("event_to_input_event", "event"),
+        &MIDIResource::event_to_input_event);
   }
 
 private:
@@ -96,6 +101,7 @@ private:
 public:
   Error load_file(const String &p_path);
   Error save_file(const String &p_path, const Ref<Resource> &p_resource);
+  static Ref<InputEventMIDI> event_to_input_event(const Dictionary &event);
 
   // getters and setters
 

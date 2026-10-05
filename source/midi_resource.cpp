@@ -160,3 +160,62 @@ Error MIDIResource::save_file(const String &p_path,
                               const Ref<Resource> &p_resource) {
   return OK;
 }
+
+Ref<InputEventMIDI> MIDIResource::event_to_input_event(const Dictionary &event) {
+  Ref<InputEventMIDI> midi_event;
+  midi_event.instantiate();
+
+  const String type = event.get("type", "");
+
+  if (type != "note" && type != "system") {
+    return midi_event;
+  }
+
+  midi_event->set_message(
+      static_cast<MIDIMessage>(
+          static_cast<int64_t>(event.get("subtype", 0))));
+
+  midi_event->set_channel(
+      static_cast<int32_t>(event.get("channel", 0)));
+
+  if (type == "note") {
+    const int32_t note = static_cast<int32_t>(event.get("note", 0));
+    const int32_t data = static_cast<int32_t>(event.get("data", 0));
+
+    switch (midi_event->get_message()) {
+    case MIDI_MESSAGE_NOTE_ON:
+    case MIDI_MESSAGE_NOTE_OFF:
+      midi_event->set_pitch(note);
+      midi_event->set_velocity(data);
+      break;
+
+    case MIDI_MESSAGE_AFTERTOUCH:
+      midi_event->set_pitch(note);
+      midi_event->set_pressure(data);
+      break;
+
+    case MIDI_MESSAGE_CONTROL_CHANGE:
+      midi_event->set_controller_number(note);
+      midi_event->set_controller_value(data);
+      break;
+
+    case MIDI_MESSAGE_PROGRAM_CHANGE:
+      midi_event->set_instrument(note);
+      break;
+
+    case MIDI_MESSAGE_CHANNEL_PRESSURE:
+      midi_event->set_pressure(note);
+      break;
+
+    case MIDI_MESSAGE_PITCH_BEND:
+      midi_event->set_controller_value(
+          note | (data << 7));
+      break;
+
+    default:
+      break;
+    }
+  }
+
+  return midi_event;
+}
