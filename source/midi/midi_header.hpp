@@ -13,7 +13,7 @@
 using namespace godot;
 
 /// @brief MIDIHeader object represented decoded header data chunk 
-class MIDIHeader : public Resource {
+class MIDIHeader: public Resource {
   GDCLASS(MIDIHeader, Resource);
 
 protected:
@@ -41,12 +41,7 @@ public:
   int32_t frames_per_second;
   int32_t ticks_per_frame;
 
-  // int32_t tempo;
-  // bool end_of_track;
-  // bool only_notes;
-
   MIDIHeader();
-  ~MIDIHeader();
 
   bool parse(MIDIChunk raw);
 };

@@ -1,8 +1,6 @@
 #include "midi_header.hpp"
 #include "../utility.hpp"
 
-using namespace godot;
-
 /// @brief default constructor for header
 MIDIHeader::MIDIHeader() {
   file_format = MIDIFileFormat::SingleTrack;
@@ -11,8 +9,6 @@ MIDIHeader::MIDIHeader() {
   division = 48;
   frames_per_second = 0;
   ticks_per_frame = 0;
-  // tempo = 500000;
-  // only_notes = false;
 }
 
 /// @brief parses a chunk of raw bytes into a header chunk

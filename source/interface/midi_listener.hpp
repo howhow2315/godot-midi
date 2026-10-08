@@ -5,7 +5,9 @@
 
 namespace godot {
 
-class MIDIListener : public Node {
+/// @brief MIDIListener extremely simple helper object for listening 
+// to midi input from a single source through godots _input system
+class MIDIListener: public Node {
   GDCLASS(MIDIListener, Node);
 
 private:
@@ -19,9 +21,9 @@ public:
   MIDIListener();
   ~MIDIListener();
 
-  void _enter_tree();
-  void _exit_tree();
-  void _input(const Ref<InputEvent> &event);
+  void _enter_tree() override;
+  void _exit_tree() override;
+  void _input(const Ref<InputEvent> &event) override;
 
   void make_current();
   bool is_current() const;

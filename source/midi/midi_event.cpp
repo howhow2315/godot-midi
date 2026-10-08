@@ -1,6 +1,9 @@
 #include "midi_event.hpp"
 #include "../utility.hpp"
 
+MIDIEvent::MIDIEvent() = default;
+MIDIEvent::~MIDIEvent() = default;
+
 /// @brief constructor
 /// @param channel
 /// @param delta

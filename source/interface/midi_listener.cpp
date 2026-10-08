@@ -19,7 +19,6 @@ void MIDIListener::_bind_methods() {
                                                    "InputEventMIDI")));
 }
 
-// extremely simple midi device listener through godots _input system
 MIDIListener::MIDIListener() { set_process_input(true); }
 
 MIDIListener::~MIDIListener() {}

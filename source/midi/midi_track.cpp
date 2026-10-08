@@ -1,8 +1,6 @@
 #include "../utility.hpp"
 #include "midi_track.hpp"
 
-using namespace godot;
-
 /// @brief The main chunk parser, takes bytes from the input stream and parses them into MIDI chunks
 /// @param raw the raw chunk of bytes
 /// @return

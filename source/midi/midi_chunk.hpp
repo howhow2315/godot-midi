@@ -18,9 +18,9 @@ class MIDIChunk {
   public:
     /// @brief Type of MIDI chunk found in a Standard MIDI File. [MTrk, MThd, and unknown]
     enum MIDIChunkType {
+      Unknown,
       Header,
-      Track,
-      Unknown
+      Track
     };
 
     String id;

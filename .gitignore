@@ -32,6 +32,5 @@ compile_commands.json
 .cache/
 
 # project
-*.sf2
-*.sf2.uid
+.import
 export_presets.cfg
