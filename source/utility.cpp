@@ -33,8 +33,7 @@ int16_t Utility::decode_int16_be(PackedByteArray bytes, int32_t offset) {
 /// @param length [out] length of varint (number of bytes consumed, 0 if offset
 /// was out of bounds)
 /// @return
-int64_t Utility::decode_varint_be(PackedByteArray bytes, int32_t offset,
-                                  int32_t &length) {
+int64_t Utility::decode_varint_be(PackedByteArray bytes, int32_t offset, int32_t &length) {
   int64_t value = 0;
   length = 0;
 

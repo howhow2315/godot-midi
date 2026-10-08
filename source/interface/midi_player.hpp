@@ -1,5 +1,4 @@
-#ifndef MIDI_PLAYER_H
-#define MIDI_PLAYER_H
+#pragma once
 
 #include <godot_cpp/core/class_db.hpp>
 #include <godot_cpp/core/defs.hpp>
@@ -22,8 +21,8 @@
 #include <thread>
 #include <vector>
 
-#include "midi_parser.hpp"
-#include "midi_resource.hpp"
+#include "../midi/midi_parser.hpp"
+#include "../midi/midi_resource.hpp"
 
 using namespace godot;
 
@@ -191,7 +190,7 @@ private:
   /// the note cache so it doesn't race with the live playback tempo
   double get_microseconds_per_tick(int32_t tempo_override = -1) {
     if (this->midi->get_division_type() ==
-        MIDIParser::MIDIHeaderChunk::MIDIDivisionType::FramesPerSecond) {
+        MIDIParser::MIDIHeader::MIDIDivisionType::FramesPerSecond) {
       double ticks_per_second =
           static_cast<double>(this->midi->get_smpte_fps()) *
           static_cast<double>(this->midi->get_smpte_ticks_per_frame());
@@ -319,5 +318,3 @@ public:
 
   Ref<MIDIResource> get_midi() { return this->midi; };
 };
-
-#endif // MIDI_PLAYER_H

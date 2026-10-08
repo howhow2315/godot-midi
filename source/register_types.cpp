@@ -1,22 +1,20 @@
 #include "register_types.hpp"
 
-#include "midi_parser.hpp"
-#include "midi_player.hpp"
-#include "midi_resource.hpp"
-
-#include <gdextension_interface.h>
-#include <godot_cpp/classes/editor_import_plugin.hpp>
-#include <godot_cpp/core/class_db.hpp>
-#include <godot_cpp/core/defs.hpp>
-#include <godot_cpp/godot.hpp>
-
-using namespace godot;
+#include "midi/midi_parser.hpp"
+#include "midi/midi_header.hpp"
+#include "midi/midi_track.hpp"
+#include "midi/midi_event.hpp"
+#include "midi/midi_resource.hpp"
+#include "interface/midi_player.hpp"
 
 void initialize_godotmidi_types(ModuleInitializationLevel p_level) {
   if (p_level != MODULE_INITIALIZATION_LEVEL_SCENE) {
     return;
   }
   ClassDB::register_class<MIDIParser>();
+  ClassDB::register_class<MIDIHeader>();
+  ClassDB::register_class<MIDITrack>();
+  ClassDB::register_class<MIDIEvent>();
   ClassDB::register_class<MIDIResource>();
   ClassDB::register_class<MIDIPlayer>();
 }

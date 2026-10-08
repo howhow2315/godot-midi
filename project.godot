@@ -17,7 +17,7 @@ compatibility/default_parent_skeleton_in_mesh_instance_3d=true
 config/name="godot-midi"
 run/main_scene="uid://cf5sqk6dd4esg"
 config/features=PackedStringArray("4.7")
-config/icon="uid://br40o2df3pt6w"
+config/icon="uid://7diwwfioyltr"
 
 [editor_plugins]
 

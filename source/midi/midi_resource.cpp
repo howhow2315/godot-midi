@@ -1,17 +1,12 @@
 #include "midi_resource.hpp"
 
-#include "midi_parser.hpp"
-
 Error MIDIResource::load_file(const String &p_path) {
-  UtilityFunctions::print(String("[GodotMIDI] Reading midi file data: ") +
-                          p_path);
+  UtilityFunctions::print(String("[GodotMIDI] Reading midi file data: ") + p_path);
 
   // get midi file data
-  godot::Ref<godot::FileAccess> midi_file =
-      FileAccess::open(p_path, FileAccess::READ);
+  Ref<FileAccess> midi_file = FileAccess::open(p_path, FileAccess::READ);
   if (midi_file == NULL) {
-    UtilityFunctions::print(String("[GodotMIDI] Error: Could not open file: ") +
-                            p_path);
+    UtilityFunctions::print(String("[GodotMIDI] Error: Could not open file: ") + p_path);
     return FAILED;
   }
 
@@ -23,8 +18,8 @@ Error MIDIResource::load_file(const String &p_path) {
   midi_data = header_chunk.load_from_bytes(midi_data);
 
   // parse header chunk
-  MIDIParser::MIDIHeaderChunk header;
-  if (!header.parse_chunk(header_chunk, header)) {
+  MIDIParser::MIDIHeader header;
+  if (!header.parse(header_chunk)) {
     UtilityFunctions::print("[GodotMIDI] Error: Could not parse header chunk.");
     return FAILED;
   }
@@ -40,7 +35,7 @@ Error MIDIResource::load_file(const String &p_path) {
   this->smpte_ticks_per_frame = header.ticks_per_frame;
   this->tempo = header.tempo;
 
-  for (int trk_idx = 0; trk_idx < header.num_tracks; ++trk_idx) {
+  for (int trk_idx = 0; trk_idx < track_count; ++trk_idx) {
     // read track chunk, skipping over any unrecognized chunks that may
     // appear between/before track chunks, as required by the MIDI spec
     MIDIParser::RawMIDIChunk trackChunk;
@@ -48,9 +43,7 @@ Error MIDIResource::load_file(const String &p_path) {
 
     while (trackChunk.chunk_type == MIDIParser::MIDIChunkType::Unknown) {
       if (midi_data.size() == 0) {
-        UtilityFunctions::print("[GodotMIDI] Error: Ran out of data while "
-                                "skipping unknown chunks before track: " +
-                                String::num_int64(trk_idx));
+        UtilityFunctions::print("[GodotMIDI] Error: Ran out of data while skipping unknown chunks before track: " + String::num_int64(trk_idx));
         return FAILED;
       }
 
@@ -59,11 +52,9 @@ Error MIDIResource::load_file(const String &p_path) {
     }
 
     // parse track chunk
-    MIDIParser::MIDITrackChunk track;
-    if (!track.parse_chunk(trackChunk, header)) {
-      UtilityFunctions::print(
-          "[GodotMIDI] Error: Could not parse track chunk: " +
-          String::num_int64(trk_idx));
+    MIDIParser::MIDITrack track;
+    if (!track.parse(trackChunk, header)) {
+      UtilityFunctions::print("[GodotMIDI] Error: Could not parse track chunk: " + String::num_int64(trk_idx));
       return FAILED;
     }
 
@@ -77,15 +68,50 @@ Error MIDIResource::load_file(const String &p_path) {
     // loop through events
     for (int i = 0; i < track.events.size(); i++) {
       // get event pointer
-      std::unique_ptr<MIDIParser::MIDIEvent> p_event =
-          std::move(track.events[i]);
+      std::unique_ptr<MIDIEvent> p_event = std::move(track.events[i]);
 
       double delta = 0.0;
 
+      // note events
+      if (p_event->get_type() == MIDIEvent::EventType::Note) {
+        MIDIEventNote note_event = *dynamic_cast<MIDIEventNote *>(p_event.get());
+        delta = (double)note_event.delta;
+
+        // load note event into current track
+        Dictionary event_dict;
+        event_dict["type"] = "note";
+        event_dict["track"] = trk_idx;
+        event_dict["subtype"] = note_event.event_type;
+        event_dict["delta"] = delta;
+        event_dict["note"] = note_event.note;
+        event_dict["data"] = note_event.data;
+        event_dict["channel"] = note_event.channel;
+
+        // add event to track
+        Array event_array = this->tracks[trk_idx].get("events");
+        event_array.push_back(event_dict);
+      
+      // system events
+      } else if (p_event->get_type() == MIDIEvent::EventType::System) {
+        MIDIEventSystem system_event = *dynamic_cast<MIDIEventSystem *>(p_event.get());
+        delta = (double)system_event.delta;
+
+        // load system event into current track
+        Dictionary event_dict;
+        event_dict["type"] = "system";
+        event_dict["track"] = trk_idx;
+        event_dict["subtype"] = system_event.event_type;
+        event_dict["delta"] = delta;
+        event_dict["channel"] = system_event.channel;
+
+        // add event to track
+        Array event_array = this->tracks[trk_idx].get("events");
+        event_array.push_back(event_dict);
+
+
       // meta events
-      if (p_event->get_type() == MIDIParser::MIDIEvent::EventType::Meta) {
-        MIDIParser::MIDIEventMeta meta_event =
-            *dynamic_cast<MIDIParser::MIDIEventMeta *>(p_event.get());
+      } else if (p_event->get_type() == MIDIEvent::EventType::Meta) {
+        MIDIEventMeta meta_event = *dynamic_cast<MIDIEventMeta *>(p_event.get());
         delta = (double)meta_event.delta;
 
         // load meta event into current track
@@ -105,78 +131,35 @@ Error MIDIResource::load_file(const String &p_path) {
         event_array.push_back(event_dict);
 
         // if we have a track name event, update the track name
-        if (meta_event.event_type ==
-            MIDIParser::MIDIEventMeta::MIDIMetaEventType::SequenceOrTrackName) {
+        if (meta_event.event_type == MIDIEventMeta::MIDIEventMetaType::SequenceOrTrackName) {
           this->tracks[trk_idx].set("name", meta_event.meta_data);
         }
       }
 
-      // note events
-      if (p_event->get_type() == MIDIParser::MIDIEvent::EventType::Note) {
-        MIDIParser::MIDIEventNote note_event =
-            *dynamic_cast<MIDIParser::MIDIEventNote *>(p_event.get());
-        delta = (double)note_event.delta;
-
-        // load note event into current track
-        Dictionary event_dict;
-        event_dict["type"] = "note";
-        event_dict["track"] = trk_idx;
-        event_dict["subtype"] = note_event.event_type;
-        event_dict["delta"] = delta;
-        event_dict["note"] = note_event.note;
-        event_dict["data"] = note_event.data;
-        event_dict["channel"] = note_event.channel;
-
-        // add event to track
-        Array event_array = this->tracks[trk_idx].get("events");
-        event_array.push_back(event_dict);
-      }
-
-      // system events
-      if (p_event->get_type() == MIDIParser::MIDIEvent::EventType::System) {
-        MIDIParser::MIDIEventSystem system_event =
-            *dynamic_cast<MIDIParser::MIDIEventSystem *>(p_event.get());
-        delta = (double)system_event.delta;
-
-        // load system event into current track
-        Dictionary event_dict;
-        event_dict["type"] = "system";
-        event_dict["track"] = trk_idx;
-        event_dict["subtype"] = system_event.event_type;
-        event_dict["delta"] = delta;
-        event_dict["channel"] = system_event.channel;
-
-        // add event to track
-        Array event_array = this->tracks[trk_idx].get("events");
-        event_array.push_back(event_dict);
-      }
     }
   }
 
   return OK;
 }
 
-Error MIDIResource::save_file(const String &p_path,
-                              const Ref<Resource> &p_resource) {
+Error MIDIResource::save_file(const String &p_path, const Ref<Resource> &p_resource) {
   return OK;
 }
 
 Ref<InputEventMIDI> MIDIResource::event_to_input_event(const Dictionary &event) {
-  Ref<InputEventMIDI> midi_event;
-  midi_event.instantiate();
+  Ref<InputEventMIDI> midi_event; midi_event.instantiate();
 
   const String type = event.get("type", "");
 
-  if (type != "note" && type != "system") {
+  // InputEventMIDI uses the message: "MIDIMessage" property which doesn't include any meta events 
+  // as well as reading all SystemExclusive messages as exclusively "MIDI_MESSAGE_SYSTEM_EXCLUSIVE"
+  if (type == "meta") {
     return midi_event;
   }
 
-  midi_event->set_message(
-      static_cast<MIDIMessage>(
-          static_cast<int64_t>(event.get("subtype", 0))));
+  midi_event->set_message(static_cast<MIDIMessage>(static_cast<int64_t>(event.get("subtype", 0))));
 
-  midi_event->set_channel(
-      static_cast<int32_t>(event.get("channel", 0)));
+  midi_event->set_channel(static_cast<int32_t>(event.get("channel", 0)));
 
   if (type == "note") {
     const int32_t note = static_cast<int32_t>(event.get("note", 0));
@@ -208,8 +191,7 @@ Ref<InputEventMIDI> MIDIResource::event_to_input_event(const Dictionary &event) 
       break;
 
     case MIDI_MESSAGE_PITCH_BEND:
-      midi_event->set_controller_value(
-          note | (data << 7));
+      midi_event->set_controller_value(note | (data << 7));
       break;
 
     default:

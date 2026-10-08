@@ -21,7 +21,7 @@ env.Append(
     LIBPATH=["library/godot-cpp/bin"],
 )
 
-sources = glob("source/*.cpp")
+sources = glob("source/*/*.cpp")
 objects = env.SharedObject(sources)
 
 suffix = env["suffix"]

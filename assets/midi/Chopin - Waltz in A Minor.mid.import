@@ -1,0 +1,14 @@
+[remap]
+
+importer="com.nlaha.godotmidi"
+type="MIDIResource"
+uid="uid://bjt2iutp3a0wc"
+path="res://.godot/imported/Chopin - Waltz in A Minor.mid-428b043a513cae8f85d9f7f0105c6918.res"
+
+[deps]
+
+source_file="res://assets/midi/Chopin - Waltz in A Minor.mid"
+dest_files=["res://.godot/imported/Chopin - Waltz in A Minor.mid-428b043a513cae8f85d9f7f0105c6918.res"]
+
+[params]
+

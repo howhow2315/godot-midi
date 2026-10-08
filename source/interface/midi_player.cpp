@@ -320,7 +320,7 @@ void MIDIPlayer::process_delta(double delta) {
           int meta_type = event.get("subtype", 0);
 
           if (meta_type ==
-              MIDIParser::MIDIEventMeta::MIDIMetaEventType::SetTempo) {
+              MIDIParser::MIDIEventMeta::MIDIEventMetaType::SetTempo) {
             this->midi->set_tempo(
                 static_cast<int>(event.get("data", DEFAULT_MIDI_TEMPO)));
 
@@ -403,7 +403,7 @@ void MIDIPlayer::build_note_cache() {
       bool is_tempo =
           type == "meta" &&
           subtype ==
-              (int)MIDIParser::MIDIEventMeta::MIDIMetaEventType::SetTempo;
+              (int)MIDIParser::MIDIEventMeta::MIDIEventMetaType::SetTempo;
 
       Dictionary timed_event = event.duplicate();
       timed_event["tick"] = tick_accum;
@@ -442,8 +442,8 @@ void MIDIPlayer::build_note_cache() {
     }
 
     int subtype = event.get("subtype", -1);
-    if (subtype != (int)MIDIParser::MIDIEventNote::NoteType::NoteOn &&
-        subtype != (int)MIDIParser::MIDIEventNote::NoteType::NoteOff) {
+    if (subtype != (int)MIDIParser::MIDIEventNote::MIDIEventNoteType::NoteOn &&
+        subtype != (int)MIDIParser::MIDIEventNote::MIDIEventNoteType::NoteOff) {
       // only note on/off events are cached; controller, pitch bend,
       // aftertouch, etc. aren't "notes" for rhythm-game purposes
       continue;
@@ -456,7 +456,7 @@ void MIDIPlayer::build_note_cache() {
     // per MIDI convention, a NoteOn with velocity 0 is really a NoteOff;
     // "active" tells the caller whether this is an actual note trigger
     int velocity = note_event.get("data", 0);
-    bool active = subtype == (int)MIDIParser::MIDIEventNote::NoteType::NoteOn &&
+    bool active = subtype == (int)MIDIParser::MIDIEventNote::MIDIEventNoteType::NoteOn &&
                   velocity > 0;
     note_event["active"] = active;
     note_event["time"] = time_seconds;
