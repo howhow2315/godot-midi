@@ -90,9 +90,7 @@ class MIDIEventSystem: public MIDIEvent {
       event_type = other.event_type;
     }
 
-    EventType get_type() const override {
-      return EventType::System;
-    };
+    EventType get_type() const override { return EventType::System; };
 };
 
 // @GlobalScope.MIDIMessage doesn't include any meta events 

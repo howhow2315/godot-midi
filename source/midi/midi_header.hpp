@@ -8,7 +8,7 @@
 #include <godot_cpp/variant/typed_array.hpp>
 #include <godot_cpp/variant/utility_functions.hpp>
 
-#include "midi_parser.hpp"
+#include "midi_chunk.hpp"
 
 using namespace godot;
 
@@ -33,7 +33,7 @@ public:
   };
 
   MIDIFileFormat file_format;
-  int32_t num_tracks;
+  int32_t track_count;
 
   MIDIDivisionType division_type;
   int32_t division;
@@ -48,5 +48,5 @@ public:
   MIDIHeader();
   ~MIDIHeader();
 
-  bool parse(MIDIParser::RawMIDIChunk raw);
+  bool parse(MIDIChunk raw);
 };

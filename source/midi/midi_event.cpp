@@ -78,8 +78,8 @@ MIDIEventNote::MIDIEventNote(int32_t channel, double delta, PackedByteArray data
 MIDIEventSystem::MIDIEventSystem(double delta, PackedByteArray data): MIDIEvent(0, delta) {
   // FIXME: we should be careful about truncated data here as well for consistancy
   // specifically we're not checking that data actually contains anything
-  event_type = (MIDIEventSystemType)data[0]; 
-
+  event_type = static_cast<MIDIEventSystemType>(data[0]);
+  
   // number of data bytes following the status byte varies per the MIDI spec:
   //  - system exclusive (0xF0) and the sysex escape/continuation (0xF7) are
   //    followed by a variable length quantity giving the length of the
@@ -88,7 +88,7 @@ MIDIEventSystem::MIDIEventSystem(double delta, PackedByteArray data): MIDIEvent(
   //  - system real-time messages (0xF8-0xFE) have no data bytes at all,
   //    and can legally appear in the middle of another message without
   //    disturbing it
-  switch (data[0]) {
+  switch (event_type) {
     case MIDIEventSystemType::SystemExclusiveStart:
     case MIDIEventSystemType::SystemExclusiveEscape: {
       int32_t length_bytes = 0;
@@ -123,38 +123,48 @@ MIDIEventSystem::MIDIEventSystem(double delta, PackedByteArray data): MIDIEvent(
 /// @param data
 MIDIEventMeta::MIDIEventMeta(double delta, PackedByteArray data): MIDIEvent(0, delta) {
   // the first byte is always 0xFF
-  // the second and third bytes are the event type and length
-  event_type = data.size() > 1 ? (MIDIEventMetaType)data[1]: MIDIEventMetaType::TextEvent;
-  event_data_length = data.size() > 2 ? Utility::decode_varint_be(data, 2, bytes_used) : 0;
+  // the second byte is the event type
+  // the following bytes contain the variable-length data size
+  event_type = data.size() > 1 ? static_cast<MIDIEventMetaType>(data[1]) : MIDIEventMetaType::TextEvent;
+
+  // decode the length of the meta event data
+  event_data_length =
+      data.size() > 2
+          ? Utility::decode_varint_be(data, 2, bytes_used)
+          : 0;
 
   // if we have a non-zero length, then we have data; clamp to what's
   // actually available in case the source data was truncated
   int32_t data_start = bytes_used + 2;
+
   if (event_data_length > 0 && data_start < data.size()) {
     int32_t data_end = data_start + event_data_length;
+
     if (data_end > data.size()) {
       data_end = data.size();
     }
+
     this->data = data.slice(data_start, data_end);
   }
+
+  // store the amount of data that was actually available
   event_data_length = this->data.size();
 
   // increment bytes used
   bytes_used = event_data_length + bytes_used + 1;
 
-  // Begin processing the various subtypes of meta events
-  // text events
-  if (this->event_type == MIDIEventMeta::MIDIEventMetaType::TextEvent ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::CopyRightNotice ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::SequenceOrTrackName ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::InstrumentName ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::Lyric ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::Marker ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::CuePoint ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::ProgramName ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::DeviceName ||
-      this->event_type == MIDIEventMeta::MIDIEventMetaType::ArtistName) {
-    
+  // Text-based meta events are stored as strings.
+  if (this->event_type == MIDIEventMetaType::TextEvent ||
+      this->event_type == MIDIEventMetaType::CopyRightNotice ||
+      this->event_type == MIDIEventMetaType::SequenceOrTrackName ||
+      this->event_type == MIDIEventMetaType::InstrumentName ||
+      this->event_type == MIDIEventMetaType::Lyric ||
+      this->event_type == MIDIEventMetaType::Marker ||
+      this->event_type == MIDIEventMetaType::CuePoint ||
+      this->event_type == MIDIEventMetaType::ProgramName ||
+      this->event_type == MIDIEventMetaType::DeviceName ||
+      this->event_type == MIDIEventMetaType::ArtistName) {
+   
     // marker
     // variable length
     // first byte is always 0x06
@@ -165,17 +175,27 @@ MIDIEventMeta::MIDIEventMeta(double delta, PackedByteArray data): MIDIEvent(0, d
     return;
   }
 
+  // Decode the remaining structured meta events into convenient Variants.
+  // These values describe the event itself; playback state such as tempo
+  // should be handled by MIDIPlayer rather than by the event object.
   switch (this->event_type) {
-    case MIDIEventMeta::MIDIEventMetaType::SetTempo: {
+    case MIDIEventMetaType::SetTempo: {
       // set tempo
       // 3 bytes
-      // the bytes are the tempo in microseconds per quarter note
+      // the value is the tempo in microseconds per quarter note
+      //
+      // The MIDIPlayer is responsible for applying this value to playback
+      // timing. MIDIEventMeta only stores the decoded value.
+      if (this->data.size() >= 3) {
+        meta_data = Utility::decode_int24_be(this->data, 0);
+      } else {
+        meta_data = 0;
+      }
 
-      // set tempo of the track
-      this->meta_data = Utility::decode_int24_be(this->data, 0);
       break;
     }
-    case MIDIEventMeta::MIDIEventMetaType::TimeSignature: {
+
+    case MIDIEventMetaType::TimeSignature: {
       // time signature
       // 4 bytes
       // first byte is always 0x04
@@ -187,14 +207,17 @@ MIDIEventMeta::MIDIEventMeta(double delta, PackedByteArray data): MIDIEvent(0, d
 
       // set time signature of the track
       Dictionary time_signature;
+
       time_signature["numerator"] = this->data.size() > 0 ? this->data[0] : 4;
-      time_signature["denominator"] = this->data.size() > 1 ? (int32_t)pow(2, this->data[1]) : 4;
+      time_signature["denominator"] = this->data.size() > 1 ? static_cast<int32_t>(1 << this->data[1]) : 4;
       time_signature["clocks_per_tick"] = this->data.size() > 2 ? this->data[2] : 24;
       time_signature["num_32nd_notes_per_quarter"] = this->data.size() > 3 ? this->data[3] : 8;
+
       meta_data = time_signature;
       break;
     }
-    case MIDIEventMeta::MIDIEventMetaType::KeySignature: {
+
+    case MIDIEventMetaType::KeySignature: {
       // key signature
       // 2 bytes
       // first byte is always 0x02
@@ -204,33 +227,37 @@ MIDIEventMeta::MIDIEventMeta(double delta, PackedByteArray data): MIDIEvent(0, d
 
       // set key signature of the track
       Dictionary key_signature;
-      key_signature["sharps_flats"] = this->data.size() > 0 ? this->data[0] : 0;
+      key_signature["sharps_flats"] = this->data.size() > 0 ? static_cast<int8_t>(this->data[0]) : 0;
       key_signature["major_minor"] = this->data.size() > 1 ? this->data[1] : 0;
-      meta_data = key_signature;
 
+      meta_data = key_signature;
       break;
     }
-    case MIDIEventMeta::MIDIEventMetaType::EndOfTrack: {
+
+    case MIDIEventMetaType::EndOfTrack: {
       // end of track
       // no data
-
-      // set end of track flag
       this->meta_data = true;
       break;
     }
-    case MIDIEventMeta::MIDIEventMetaType::SequenceNumber:
-    case MIDIEventMeta::MIDIEventMetaType::TextEvent:
-    case MIDIEventMeta::MIDIEventMetaType::CopyRightNotice:
-    case MIDIEventMeta::MIDIEventMetaType::SequenceOrTrackName:
-    case MIDIEventMeta::MIDIEventMetaType::InstrumentName:
-    case MIDIEventMeta::MIDIEventMetaType::Lyric:
-    case MIDIEventMeta::MIDIEventMetaType::Marker:
-    case MIDIEventMeta::MIDIEventMetaType::CuePoint:
-    case MIDIEventMeta::MIDIEventMetaType::ProgramName:
-    case MIDIEventMeta::MIDIEventMetaType::DeviceName:
-    case MIDIEventMeta::MIDIEventMetaType::ArtistName:
-    case MIDIEventMeta::MIDIEventMetaType::SMPTEOffset: {
-      // unknown meta event
+
+    case MIDIEventMetaType::SequenceNumber:
+    case MIDIEventMetaType::TextEvent:
+    case MIDIEventMetaType::CopyRightNotice:
+    case MIDIEventMetaType::SequenceOrTrackName:
+    case MIDIEventMetaType::InstrumentName:
+    case MIDIEventMetaType::Lyric:
+    case MIDIEventMetaType::Marker:
+    case MIDIEventMetaType::CuePoint:
+    case MIDIEventMetaType::ProgramName:
+    case MIDIEventMetaType::DeviceName:
+    case MIDIEventMetaType::ArtistName:
+    case MIDIEventMetaType::SMPTEOffset:
+    default: {
+      // unknown or currently unhandled meta event
+      //
+      // The raw data is still available through `data`, so unsupported
+      // meta events are not discarded.
       break;
     }
   }

@@ -29,6 +29,7 @@ addons/godot-midi/bin
 # to let the c++ linter read godot-cpp properly
 # scons compiledb=yes compile_commands.json
 compile_commands.json
+.cache/
 
 # project
 *.sf2
