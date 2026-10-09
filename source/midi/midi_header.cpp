@@ -23,7 +23,7 @@ bool MIDIHeader::parse(MIDIChunk chunk) {
   // an MThd chunk must contain at least 6 bytes (format, ntrks, division);
   // anything shorter is malformed and can't be safely parsed
   if (chunk.data.size() < 6) {
-    UtilityFunctions::printerr("[GodotMIDI] Error: MThd chunk is too short to contain a valid header");
+    UtilityFunctions::push_error("[GodotMIDI] Error: MThd chunk is too short to contain a valid header");
     return false;
   }
 

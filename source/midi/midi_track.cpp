@@ -1,7 +1,8 @@
-#include "../utility.hpp"
 #include "midi_track.hpp"
+#include "../utility.hpp"
 
-/// @brief The main chunk parser, takes bytes from the input stream and parses them into MIDI chunks
+/// @brief The main chunk parser, takes bytes from the input stream and parses
+/// them into MIDI chunks
 /// @param raw the raw chunk of bytes
 /// @return
 bool MIDITrack::parse(MIDIChunk raw) {
@@ -19,23 +20,26 @@ bool MIDITrack::parse(MIDIChunk raw) {
   uint8_t running_status = 0;
 
   while (offset < raw.size) {
-    int32_t bytes_used = 0;
+    int32_t delta_bytes = 0;
 
     // first variable length quantity is delta time
-    int32_t delta_time = Utility::decode_varint_be(raw.data, offset, bytes_used);
-    offset += bytes_used;
+    int32_t delta_time =
+        Utility::decode_varint_be(raw.data, offset, delta_bytes);
+
+    offset += delta_bytes;
 
     if (offset >= raw.size) {
       // truncated track: nothing left to read after the delta time
-      UtilityFunctions::printerr("[GodotMIDI] Warning: track data ended unexpectedly after a delta time, stopping");
+      UtilityFunctions::push_warning("[GodotMIDI] Track data ended unexpectedly after a delta time, stopping");
       break;
     }
 
     uint8_t event_status;
     uint8_t next_byte = raw.data[offset];
 
-    // NOTE: MIDI realtime messages (F8-FF) can occur interleaved with channel/system messages
-    
+    // NOTE: MIDI realtime messages (F8-FF) can occur interleaved with
+    // channel/system messages
+
     // explicit status
     if (next_byte & 0x80) {
       // byte present
@@ -46,19 +50,20 @@ bool MIDITrack::parse(MIDIChunk raw) {
       if (event_status < 0xF0) {
         running_status = event_status;
 
-      // system common messages cancel running status
+        // system common messages cancel running status
       } else if (event_status <= 0xF7) {
         running_status = 0;
       }
       // system realtime messages (0xF8-0xFE) and meta events (0xFF)
       // don't affect running status
 
-    // running status
+      // running status
     } else {
-      // this byte is actually the first data byte of 
+      // this byte is actually the first data byte of
       // a channel voice/mode message, reusing the last status byte
       if (running_status == 0) {
-        UtilityFunctions::printerr("[GodotMIDI] Malformed MIDI track: data byte encountered with no active running status");
+        UtilityFunctions::printerr(
+            "[GodotMIDI] Malformed MIDI track: data byte encountered with no active running status");
         break;
       }
 
@@ -76,55 +81,63 @@ bool MIDITrack::parse(MIDIChunk raw) {
     if (event_status == 0xFF) {
       int32_t length_bytes = 0;
 
-      int64_t data_len = Utility::decode_varint_be(raw.data, offset + 1, length_bytes);
+      int64_t data_len =
+          Utility::decode_varint_be(raw.data, offset + 1, length_bytes);
 
       payload_needed = 1 + length_bytes + static_cast<int32_t>(data_len);
 
-    // system exclusive / escape: <length varint> <data...>
-    } else if (
-        event_status == static_cast<uint8_t>(MIDIEventSystem::MIDIEventSystemType::SystemExclusiveStart) ||
-        event_status == static_cast<uint8_t>(MIDIEventSystem::MIDIEventSystemType::SystemExclusiveEscape)) {
+      // system exclusive / escape: <length varint> <data...>
+    } else if (event_status ==
+                   static_cast<uint8_t>(MIDIEventSystem::MIDIEventSystemType::
+                                            SystemExclusiveStart) ||
+               event_status ==
+                   static_cast<uint8_t>(MIDIEventSystem::MIDIEventSystemType::
+                                            SystemExclusiveEscape)) {
 
       int32_t length_bytes = 0;
 
-      int64_t data_len = Utility::decode_varint_be(raw.data, offset, length_bytes);
+      int64_t data_len =
+          Utility::decode_varint_be(raw.data, offset, length_bytes);
 
       payload_needed = length_bytes + static_cast<int32_t>(data_len);
 
-    // channel voice/mode message
+      // channel voice/mode message
     } else if (event_status < 0xF0) {
-      MIDIEventNote::MIDIEventNoteType event_type = static_cast<MIDIEventNote::MIDIEventNoteType>((event_status >> 4) & 0x0F);
+      MIDIEventNote::MIDIEventNoteType event_type =
+          static_cast<MIDIEventNote::MIDIEventNoteType>((event_status >> 4) &
+                                                        0x0F);
 
       // program change and channel pressure only have one data byte
       switch (event_type) {
-        case MIDIEventNote::MIDIEventNoteType::ProgramChange:
-        case MIDIEventNote::MIDIEventNoteType::ChannelPressure:
-          payload_needed = 1;
-          break;
+      case MIDIEventNote::MIDIEventNoteType::ProgramChange:
+      case MIDIEventNote::MIDIEventNoteType::ChannelPressure:
+        payload_needed = 1;
+        break;
 
-        default:
-          payload_needed = 2;
-          break;
+      default:
+        payload_needed = 2;
+        break;
       }
 
-    // remaining system common/real-time messages
+      // remaining system common/real-time messages
     } else {
-      MIDIEventSystem::MIDIEventSystemType event_type = static_cast<MIDIEventSystem::MIDIEventSystemType>(event_status);
+      MIDIEventSystem::MIDIEventSystemType event_type =
+          static_cast<MIDIEventSystem::MIDIEventSystemType>(event_status);
 
       switch (event_type) {
-        case MIDIEventSystem::MIDIEventSystemType::MTCQuarterFrame:
-        case MIDIEventSystem::MIDIEventSystemType::SongSelect:
-          payload_needed = 1;
-          break;
+      case MIDIEventSystem::MIDIEventSystemType::MTCQuarterFrame:
+      case MIDIEventSystem::MIDIEventSystemType::SongSelect:
+        payload_needed = 1;
+        break;
 
-        case MIDIEventSystem::MIDIEventSystemType::SongPositionPointer:
-          payload_needed = 2;
-          break;
+      case MIDIEventSystem::MIDIEventSystemType::SongPositionPointer:
+        payload_needed = 2;
+        break;
 
-        default:
-          // F6, F8, FA, FB, FC, FE and other messages have no payload
-          payload_needed = 0;
-          break;
+      default:
+        // F6, F8, FA, FB, FC, FE and other messages have no payload
+        payload_needed = 0;
+        break;
       }
     }
 
@@ -156,97 +169,154 @@ bool MIDITrack::parse(MIDIChunk raw) {
 
     // special case for meta events
     if (event_status == 0xFF) {
-      // meta event
-      Ref<MIDIEventMeta> event = Ref<MIDIEventMeta>(memnew(MIDIEventMeta(delta_time, event_data)));
-      offset += event->get_bytes_used();
-      events.push_back(event);
+        Ref<MIDIEventMeta> event =
+            Ref<MIDIEventMeta>(memnew(MIDIEventMeta(delta_time, event_data)));
 
-      // EndOfTrack is a track-level marker.
-      // There should normally be nothing meaningful after it.
-      if (event->event_type == MIDIEventMeta::MIDIEventMetaType::EndOfTrack) {
-        return true;
-      }
+        offset += event->get_bytes_used();
 
-      continue;
+        if (event.is_valid()) {
+            switch (event->event_type) {
+            case MIDIEventMeta::MIDIEventMetaType::TimeSignature: {
+                // FF 58 04 nn dd cc bb
+                if (event->data.size() >= 4) {
+                    time_signature.numerator = event->data[0];
+
+                    // MIDI stores denominator as log2(denominator).
+                    time_signature.denominator =
+                        1 << static_cast<int32_t>(event->data[1]);
+
+                    time_signature.clocks_per_tick = event->data[2];
+                    time_signature.num_32nd_notes_per_quarter =
+                        event->data[3];
+                }
+                break;
+            }
+
+            case MIDIEventMeta::MIDIEventMetaType::KeySignature: {
+                // FF 59 02 sf mi
+                if (event->data.size() >= 2) {
+                    // First byte is a signed 8-bit value (-7 to +7).
+                    const int8_t sf =
+                        static_cast<int8_t>(event->data[0]);
+
+                    key_signature.sharps_flats = sf;
+                    key_signature.major_minor = event->data[1];
+                }
+                break;
+            }
+
+            default:
+                break;
+            }
+        }
+
+        events.push_back(event);
+
+        if (event->event_type ==
+            MIDIEventMeta::MIDIEventMetaType::EndOfTrack) {
+            return true;
+        }
+
+        continue;
     }
 
     // channel voice/mode messages
     if (event_status < 0xF0) {
-      MIDIEventNote::MIDIEventNoteType event_type = static_cast<MIDIEventNote::MIDIEventNoteType>((event_status >> 4) & 0x0F);
+      MIDIEventNote::MIDIEventNoteType event_type =
+          static_cast<MIDIEventNote::MIDIEventNoteType>((event_status >> 4) &
+                                                        0x0F);
 
       // the event type determines which MIDIEventNote to construct
       switch (event_type) {
-        case MIDIEventNote::MIDIEventNoteType::NoteOff: {
-          Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(MIDIEventNote(channel, delta_time, event_data, MIDIEventNote::MIDIEventNoteType::NoteOff)));
+      case MIDIEventNote::MIDIEventNoteType::NoteOff: {
+        Ref<MIDIEventNote> event = Ref<MIDIEventNote>(
+            memnew(MIDIEventNote(channel, delta_time, event_data,
+                                 MIDIEventNote::MIDIEventNoteType::NoteOff)));
 
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        case MIDIEventNote::MIDIEventNoteType::NoteOn: {
-          Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(MIDIEventNote(channel, delta_time, event_data, MIDIEventNote::MIDIEventNoteType::NoteOn)));
+      case MIDIEventNote::MIDIEventNoteType::NoteOn: {
+        Ref<MIDIEventNote> event = Ref<MIDIEventNote>(
+            memnew(MIDIEventNote(channel, delta_time, event_data,
+                                 MIDIEventNote::MIDIEventNoteType::NoteOn)));
 
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        case MIDIEventNote::MIDIEventNoteType::Aftertouch: {
-          Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(MIDIEventNote(channel, delta_time, event_data, MIDIEventNote::MIDIEventNoteType::Aftertouch)));
+      case MIDIEventNote::MIDIEventNoteType::Aftertouch: {
+        Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(
+            MIDIEventNote(channel, delta_time, event_data,
+                          MIDIEventNote::MIDIEventNoteType::Aftertouch)));
 
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        case MIDIEventNote::MIDIEventNoteType::Controller: {
-          Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(MIDIEventNote(channel, delta_time, event_data, MIDIEventNote::MIDIEventNoteType::Controller)));
+      case MIDIEventNote::MIDIEventNoteType::Controller: {
+        Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(
+            MIDIEventNote(channel, delta_time, event_data,
+                          MIDIEventNote::MIDIEventNoteType::Controller)));
 
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        case MIDIEventNote::MIDIEventNoteType::ProgramChange: {
-          Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(MIDIEventNote(channel, delta_time, event_data, MIDIEventNote::MIDIEventNoteType::ProgramChange)));
+      case MIDIEventNote::MIDIEventNoteType::ProgramChange: {
+        Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(
+            MIDIEventNote(channel, delta_time, event_data,
+                          MIDIEventNote::MIDIEventNoteType::ProgramChange)));
 
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        case MIDIEventNote::MIDIEventNoteType::ChannelPressure: {
-          Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(MIDIEventNote(channel, delta_time, event_data, MIDIEventNote::MIDIEventNoteType::ChannelPressure)));
+      case MIDIEventNote::MIDIEventNoteType::ChannelPressure: {
+        Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(
+            MIDIEventNote(channel, delta_time, event_data,
+                          MIDIEventNote::MIDIEventNoteType::ChannelPressure)));
 
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        case MIDIEventNote::MIDIEventNoteType::PitchBend: {
-          Ref<MIDIEventNote> event = Ref<MIDIEventNote>(memnew(MIDIEventNote(channel, delta_time, event_data, MIDIEventNote::MIDIEventNoteType::PitchBend)));
+      case MIDIEventNote::MIDIEventNoteType::PitchBend: {
+        Ref<MIDIEventNote> event = Ref<MIDIEventNote>(
+            memnew(MIDIEventNote(channel, delta_time, event_data,
+                                 MIDIEventNote::MIDIEventNoteType::PitchBend)));
 
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        default: {
-          // unknown event type
-          UtilityFunctions::print(String("Unknown event type: ") + String::num_int64(static_cast<int32_t>(event_type)));
+      default: {
+        // unknown event type
+        UtilityFunctions::print(
+            String("Unknown event type: ") +
+            String::num_int64(static_cast<int32_t>(event_type)));
 
-          // print data as hex
-          UtilityFunctions::print(event_data.slice(0, 10).hex_encode() + String("..."));
+        // print data as hex
+        UtilityFunctions::print(event_data.slice(0, 10).hex_encode() +
+                                String("..."));
 
-          // print delta time (parsed)
-          UtilityFunctions::print(String("Delta time: ") + String::num_int64(delta_time));
+        // print delta time (parsed)
+        UtilityFunctions::print(String("Delta time: ") +
+                                String::num_int64(delta_time));
 
-          // Make sure an unknown event cannot leave the parser stuck
-          // at the same offset forever.
-          offset += payload_needed;
-          break;
-        }
+        // Make sure an unknown event cannot leave the parser stuck
+        // at the same offset forever.
+        offset += payload_needed;
+        break;
+      }
       }
 
       continue;
@@ -254,43 +324,49 @@ bool MIDITrack::parse(MIDIChunk raw) {
 
     // remaining system common/real-time messages
     {
-      MIDIEventSystem::MIDIEventSystemType event_type = static_cast<MIDIEventSystem::MIDIEventSystemType>(event_status);
+      MIDIEventSystem::MIDIEventSystemType event_type =
+          static_cast<MIDIEventSystem::MIDIEventSystemType>(event_status);
 
       switch (event_type) {
-        case MIDIEventSystem::MIDIEventSystemType::SystemExclusiveStart:
-        case MIDIEventSystem::MIDIEventSystemType::SystemExclusiveEscape:
-        case MIDIEventSystem::MIDIEventSystemType::MTCQuarterFrame:
-        case MIDIEventSystem::MIDIEventSystemType::SongPositionPointer:
-        case MIDIEventSystem::MIDIEventSystemType::SongSelect:
-        case MIDIEventSystem::MIDIEventSystemType::TuneRequest:
-        case MIDIEventSystem::MIDIEventSystemType::TimingClock:
-        case MIDIEventSystem::MIDIEventSystemType::Start:
-        case MIDIEventSystem::MIDIEventSystemType::Continue:
-        case MIDIEventSystem::MIDIEventSystemType::Stop:
-        case MIDIEventSystem::MIDIEventSystemType::ActiveSensing:
-        case MIDIEventSystem::MIDIEventSystemType::Reset: {
-          // system event
-          Ref<MIDIEventSystem> event = Ref<MIDIEventSystem>(memnew(MIDIEventSystem(delta_time, event_data)));
-          offset += event->get_bytes_used();
-          events.push_back(event);
-          break;
-        }
+      case MIDIEventSystem::MIDIEventSystemType::SystemExclusiveStart:
+      case MIDIEventSystem::MIDIEventSystemType::SystemExclusiveEscape:
+      case MIDIEventSystem::MIDIEventSystemType::MTCQuarterFrame:
+      case MIDIEventSystem::MIDIEventSystemType::SongPositionPointer:
+      case MIDIEventSystem::MIDIEventSystemType::SongSelect:
+      case MIDIEventSystem::MIDIEventSystemType::TuneRequest:
+      case MIDIEventSystem::MIDIEventSystemType::TimingClock:
+      case MIDIEventSystem::MIDIEventSystemType::Start:
+      case MIDIEventSystem::MIDIEventSystemType::Continue:
+      case MIDIEventSystem::MIDIEventSystemType::Stop:
+      case MIDIEventSystem::MIDIEventSystemType::ActiveSensing:
+      case MIDIEventSystem::MIDIEventSystemType::Reset: {
+        // system event
+        Ref<MIDIEventSystem> event = Ref<MIDIEventSystem>(
+            memnew(MIDIEventSystem(delta_time, event_data)));
+        offset += event->get_bytes_used();
+        events.push_back(event);
+        break;
+      }
 
-        default: {
-          // unknown event type
-          UtilityFunctions::print(String("Unknown event type: ") + String::num_int64(static_cast<int32_t>(event_type)));
+      default: {
+        // unknown event type
+        UtilityFunctions::print(
+            String("Unknown event type: ") +
+            String::num_int64(static_cast<int32_t>(event_type)));
 
-          // print data as hex
-          UtilityFunctions::print(event_data.slice(0, 10).hex_encode() + String("..."));
+        // print data as hex
+        UtilityFunctions::print(event_data.slice(0, 10).hex_encode() +
+                                String("..."));
 
-          // print delta time (parsed)
-          UtilityFunctions::print(String("Delta time: ") + String::num_int64(delta_time));
+        // print delta time (parsed)
+        UtilityFunctions::print(String("Delta time: ") +
+                                String::num_int64(delta_time));
 
-          // Make sure an unknown event cannot leave the parser stuck
-          // at the same offset forever.
-          offset += payload_needed;
-          break;
-        }
+        // Make sure an unknown event cannot leave the parser stuck
+        // at the same offset forever.
+        offset += payload_needed;
+        break;
+      }
       }
     }
   }

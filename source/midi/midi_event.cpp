@@ -130,31 +130,39 @@ MIDIEventMeta::MIDIEventMeta(double delta, PackedByteArray data): MIDIEvent(0, d
   // the following bytes contain the variable-length data size
   event_type = data.size() > 1 ? static_cast<MIDIEventMetaType>(data[1]) : MIDIEventMetaType::TextEvent;
 
-  // decode the length of the meta event data
-  event_data_length =
-      data.size() > 2
-          ? Utility::decode_varint_be(data, 2, bytes_used)
-          : 0;
+  // Decode the payload length. Keep the length-field byte count
+  // separate from the total number of bytes consumed.
+  int32_t length_bytes = 0;
 
-  // if we have a non-zero length, then we have data; clamp to what's
-  // actually available in case the source data was truncated
-  int32_t data_start = bytes_used + 2;
+  int64_t declared_length = data.size() > 2
+      ? Utility::decode_varint_be(data, 2, length_bytes)
+      : 0;
 
-  if (event_data_length > 0 && data_start < data.size()) {
-    int32_t data_end = data_start + event_data_length;
+  // data[0] = 0xFF (status)
+  // data[1] = meta-event type
+  // data[2...] = length encoding followed by payload
+  int32_t data_start = 2 + length_bytes;
 
-    if (data_end > data.size()) {
-      data_end = data.size();
-    }
+  int32_t available = MAX(
+      0,
+      static_cast<int32_t>(data.size()) - data_start
+  );
 
-    this->data = data.slice(data_start, data_end);
+  int32_t actual_length = static_cast<int32_t>(
+      MIN(declared_length, static_cast<int64_t>(available))
+  );
+
+  if (actual_length > 0) {
+      this->data = data.slice(data_start, data_start + actual_length);
+  } else {
+      this->data = PackedByteArray();
   }
 
-  // store the amount of data that was actually available
-  event_data_length = this->data.size();
+  event_data_length = actual_length;
 
-  // increment bytes used
-  bytes_used = event_data_length + bytes_used + 1;
+  // MIDITrack::parse() has already consumed the 0xFF status byte.
+  // Count the type byte, length encoding, and payload.
+  bytes_used = 1 + length_bytes + actual_length;
 
   // Text-based meta events are stored as strings.
   if (this->event_type == MIDIEventMetaType::TextEvent ||
@@ -189,11 +197,13 @@ MIDIEventMeta::MIDIEventMeta(double delta, PackedByteArray data): MIDIEvent(0, d
       //
       // The MIDIPlayer is responsible for applying this value to playback
       // timing. MIDIEventMeta only stores the decoded value.
-      if (this->data.size() >= 3) {
-        meta_data = Utility::decode_int24_be(this->data, 0);
-      } else {
-        meta_data = 0;
-      }
+
+      // were currently doing this directly inside of the midi player
+      // if (this->data.size() >= 3) {
+      //   meta_data = Utility::decode_int24_be(this->data, 0);
+      // } else {
+      //   meta_data = 0;
+      // }
 
       break;
     }

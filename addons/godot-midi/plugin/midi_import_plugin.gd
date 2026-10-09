@@ -45,13 +45,29 @@ func _get_import_order():
 	return 0
 
 func _import(source_file, save_path, options, r_platform_variants, r_gen_files):
+	#print("[GodotMIDI] Importing midi file: " + source_file)
 
-	print("[GodotMIDI] Importing midi file: " + source_file)
-
-	var save_file = save_path + "." + _get_save_extension()
-	var midi_resource = MIDIResource.new()
+	var save_file: String = save_path + "." + _get_save_extension()
+	var midi_resource := MIDIResource.new()
 	if midi_resource.load_file(source_file) != OK:
 		printerr("[GodotMIDI] Failed to load midi file: " + source_file)
 		return FAILED
 
-	return ResourceSaver.save(midi_resource, save_file)
+	# uncompressed the .import file is 10x the size of the midi file and compressed its still 3x the size
+	# we could most definently make this more efficient if we parse on demand and cache the decoded events in memory
+	var save_error := ResourceSaver.save(midi_resource, save_file, ResourceSaver.FLAG_COMPRESS)
+	if save_error != OK:
+		printerr("[GodotMIDI] Save failed: ", save_error)
+		return save_error
+
+	# var loaded := ResourceLoader.load(
+	# 	save_file,
+	# 	"MIDIResource",
+	# 	ResourceLoader.CACHE_MODE_IGNORE
+	# ) as MIDIResource
+
+	# if loaded == null:
+	# 	printerr("[MIDI DEBUG] Failed to reload: ", save_file)
+	# 	return FAILED
+
+	return OK

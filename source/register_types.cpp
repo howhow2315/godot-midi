@@ -13,6 +13,9 @@ void initialize_godotmidi_types(ModuleInitializationLevel p_level) {
   ClassDB::register_class<MIDIHeader>();
   ClassDB::register_class<MIDITrack>();
   ClassDB::register_class<MIDIEvent>();
+  ClassDB::register_class<MIDIEventNote>();
+  ClassDB::register_class<MIDIEventSystem>();
+  ClassDB::register_class<MIDIEventMeta>();
   ClassDB::register_class<MIDIResource>();
   ClassDB::register_class<MIDIPlayer>();
 }

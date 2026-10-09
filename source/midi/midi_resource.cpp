@@ -1,12 +1,12 @@
 #include "midi_resource.hpp"
 
 Error MIDIResource::load_file(const String &p_path) {
-  UtilityFunctions::print(String("[GodotMIDI] Reading midi file data: ") + p_path);
+  // UtilityFunctions::print(String("[GodotMIDI] Reading midi file data: ") + p_path);
 
   // get midi file data
   Ref<FileAccess> midi_file = FileAccess::open(p_path, FileAccess::READ);
   if (midi_file == NULL) {
-    UtilityFunctions::print(String("[GodotMIDI] Error: Could not open file: ") + p_path);
+    UtilityFunctions::push_error(String("Error: Could not open file: ") + p_path);
     return FAILED;
   }
 
@@ -22,7 +22,7 @@ Error MIDIResource::load_file(const String &p_path) {
   parsed_header.instantiate();
 
   if (!parsed_header->parse(header_chunk)) {
-    UtilityFunctions::print("[GodotMIDI] Error: Could not parse header chunk.");
+    UtilityFunctions::push_error("[GodotMIDI] Could not parse header chunk.");
     return FAILED;
   }
 
@@ -41,8 +41,8 @@ Error MIDIResource::load_file(const String &p_path) {
 
     while (track_chunk.type == MIDIChunk::MIDIChunkType::Unknown) {
       if (midi_data.size() == 0) {
-        UtilityFunctions::print(
-            "[GodotMIDI] Error: Ran out of data while skipping unknown chunks before track: " +
+        UtilityFunctions::push_error(
+            "[GodotMIDI] Ran out of data while skipping unknown chunks before track: " +
             String::num_int64(trk_idx));
         return FAILED;
       }
@@ -56,11 +56,13 @@ Error MIDIResource::load_file(const String &p_path) {
     track.instantiate();
 
     if (!track->parse(track_chunk)) {
-      UtilityFunctions::print(
-          "[GodotMIDI] Error: Could not parse track chunk: " +
+      UtilityFunctions::push_error(
+          "[GodotMIDI] Could not parse track chunk: " +
           String::num_int64(trk_idx));
       return FAILED;
     }
+
+    // UtilityFunctions::print("[GodotMIDI] Track ", trk_idx, " events: ", track->events.size());
 
     // add the parsed track directly to the resource
     tracks.push_back(track);

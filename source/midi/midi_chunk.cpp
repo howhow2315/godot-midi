@@ -29,8 +29,8 @@ PackedByteArray MIDIChunk::load_from_bytes(PackedByteArray bytes) {
   // file is truncated or the size field is corrupt
   uint32_t available = static_cast<uint32_t>(bytes_size - 8);
   if (size > available) {
-    UtilityFunctions::printerr(
-        "[GodotMIDI] Warning: chunk '" + id + "' declares size " +
+    UtilityFunctions::push_warning(
+        "[GodotMIDI] chunk '" + id + "' declares size " +
         String::num_int64(size) + " but only " +
         String::num_int64(available) + " bytes remain, truncating");
     size = available;

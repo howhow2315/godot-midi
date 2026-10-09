@@ -1,3 +1,5 @@
+originally forked from [godot-midi](https://github.com/nlaha/godot-midi)
+
 ![banner_logo_long](https://github.com/nlaha/godot-midi/assets/10292944/4e5b5125-0453-4f92-9ac7-048cfb2c8067)
 
 [![Builds](https://github.com/nlaha/godot-midi/actions/workflows/builds.yml/badge.svg)](https://github.com/nlaha/godot-midi/actions/workflows/builds.yml)
