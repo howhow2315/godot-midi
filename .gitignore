@@ -56,3 +56,10 @@ __pycache__
 # Cmake
 cmake-build*
 CMakeUserPresets.json
+
+# project
+build/
+export/
+export_presets.cfg
+project/addons/godot-midi/*.md
+.directory
