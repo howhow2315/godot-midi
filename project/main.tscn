@@ -1,0 +1,36 @@
+[gd_scene format=3 uid="uid://cf5sqk6dd4esg"]
+
+[ext_resource type="Script" uid="uid://dfde02ghyokyh" path="res://main.gd" id="1_g1q4x"]
+[ext_resource type="MIDIResource" uid="uid://bwxmdnj2538j2" path="res://assets/midi/Beethoven - Virus.mid" id="2_g1q4x"]
+[ext_resource type="Script" uid="uid://ydp5o12wmq1w" path="res://classes/midi_visualizer.gd" id="2_ik7bt"]
+[ext_resource type="AudioStream" uid="uid://b24tthm3icnem" path="res://assets/audio/Beethoven - Virus.ogg" id="3_g1q4x"]
+
+[node name="Main" type="Node" unique_id=329215823]
+script = ExtResource("1_g1q4x")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer" parent="." unique_id=1799004673]
+stream = ExtResource("3_g1q4x")
+
+[node name="MIDIListener" type="MIDIListener" parent="." unique_id=1904506347]
+
+[node name="MIDIPlayer" type="MIDIPlayer" parent="." unique_id=173321142]
+midi = ExtResource("2_g1q4x")
+process_mode = 3
+
+[node name="MIDIVisualizer" type="Node3D" parent="." unique_id=485156756]
+script = ExtResource("2_ik7bt")
+note_speed = 5.0
+note_min_x = -9.9
+note_max_x = 9.9
+note_max_y = 12.0
+metadata/_custom_type_script = "uid://ydp5o12wmq1w"
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=1512973600]
+transform = Transform3D(-0.392767, 0.35355294, -0.8489608, 0.480471, 0.86602587, 0.13837253, 0.784144, -0.35355285, -0.5100183, -2, 2, 2)
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=548706752]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5.5, 10)
+size = 11.5
+
+[node name="CSGBox3D" type="CSGBox3D" parent="." unique_id=1602683343]
+size = Vector3(20, 0.1, 0.35)

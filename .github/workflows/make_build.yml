@@ -1,0 +1,143 @@
+# For syntax, see https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+# This workflow is triggered manually on the "Actions" tab on GitHub, and can be used to create releases.
+
+name: Make a GDExtension build for all supported platforms
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (e.g. v1.0.0)"
+        required: true
+        type: string
+
+env:
+  ADDON_NAME: godot-midi
+  ADDON_DIR: project/addons/godot-midi
+  BIN_DIR: project/addons/godot-midi/binaries
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        # A build is made for every possible combination of parameters
+        # You can add or remove entries from the arrays of each parameter to customize which builds you want to run.
+        # See https://docs.github.com/en/actions/writing-workflows/choosing-what-your-workflow-does/running-variations-of-jobs-in-a-workflow
+        target:
+          [
+            { platform: linux, arch: x86_64, os: ubuntu-22.04 },
+            { platform: linux, arch: x86_32, os: ubuntu-22.04 },
+            { platform: linux, arch: arm64, os: ubuntu-22.04-arm },
+            { platform: linux, arch: arm32, os: ubuntu-22.04-arm },
+            { platform: windows, arch: x86_64, os: windows-latest },
+            { platform: windows, arch: x86_32, os: windows-latest },
+            { platform: windows, arch: arm64, os: windows-latest },
+            # { platform: macos, arch: universal, os: macos-latest },
+            # { platform: android, arch: x86_64, os: ubuntu-22.04 },
+            # { platform: android, arch: x86_32, os: ubuntu-22.04 },
+            # { platform: android, arch: arm64, os: ubuntu-22.04 },
+            # { platform: android, arch: arm32, os: ubuntu-22.04 },
+            # { platform: ios, arch: arm64, os: macos-latest },
+            # { platform: web, arch: wasm32, os: ubuntu-22.04 },
+          ]
+        target-type: [
+          template_debug, 
+          template_release
+          ]
+        float-precision: [single]
+
+    runs-on: ${{ matrix.target.os }}
+    steps:
+      # Clone this repository
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          submodules: true
+
+      # Add linux x86_32 toolchain
+      - name: Install multilib support
+        if: ${{ matrix.target.platform == 'linux' && matrix.target.arch == 'x86_32' }}
+        run: |
+          sudo apt-get update && sudo apt-get install -y gcc-multilib g++-multilib
+
+      # Setup dependencies
+      - name: Setup godot-cpp
+        uses: ./library/godot-cpp/.github/actions/setup-godot-cpp
+        with:
+          platform: ${{ matrix.target.platform }}
+          em-version: 3.1.62
+
+      # Build GDExtension (with caches)
+
+      - name: Restore .scons_cache
+        uses: ./library/godot-cpp/.github/actions/godot-cache-restore
+        with:
+          scons-cache: ${{ github.workspace }}/.scons-cache/
+          cache-name: ${{ matrix.target.platform }}_${{ matrix.target.arch }}_${{ matrix.float-precision }}_${{ matrix.target-type }}
+
+      - name: Build GDExtension Debug Build
+        shell: sh
+        env:
+          SCONS_CACHE: ${{ github.workspace }}/.scons-cache/
+        run: |
+          scons target=${{ matrix.target-type }} platform=${{ matrix.target.platform }} arch=${{ matrix.target.arch }} precision=${{ matrix.float-precision }}
+
+      - name: Save .scons_cache
+        uses: ./library/godot-cpp/.github/actions/godot-cache-save
+        with:
+          scons-cache: ${{ github.workspace }}/.scons-cache/
+          cache-name: ${{ matrix.target.platform }}_${{ matrix.target.arch }}_${{ matrix.float-precision }}_${{ matrix.target-type }}
+
+      # Clean up compilation files
+      - name: Windows - Delete compilation files
+        if: ${{ matrix.target.platform == 'windows' }}
+        shell: pwsh
+        run: |
+          Remove-Item "$env:BIN_DIR/*" -Include *.exp,*.lib,*.pdb -Force
+
+      # Upload the entire addon folder
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.ADDON_NAME }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}-${{ matrix.float-precision }}-${{ matrix.target-type }}
+          path: project/addons/${{ env.ADDON_NAME }}/
+
+  # Merges all the build artifacts together into a single godot-cpp-template artifact.
+  # If you comment out this step, all the builds will be uploaded individually.
+  merge:
+    runs-on: ubuntu-22.04
+    needs: build
+    steps:
+      - name: Merge Artifacts
+        uses: actions/upload-artifact/merge@v7
+        with:
+          name: ${{ env.ADDON_NAME }}
+          pattern: ${{ env.ADDON_NAME }}-*
+          delete-merged: true
+
+  release:
+    runs-on: ubuntu-22.04
+    needs: merge
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download merged addon artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.ADDON_NAME }}
+          path: dist/
+
+      - name: Package addon as ZIP
+        working-directory: dist
+        run: |
+          zip -r "$GITHUB_WORKSPACE/${{ env.ADDON_NAME }}.zip" .
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ inputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: ${{ inputs.tag }}
+          generate_release_notes: true
+          files: ${{ env.ADDON_NAME }}.zip

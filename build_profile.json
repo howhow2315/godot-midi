@@ -1,0 +1,20 @@
+{
+	"type": "feature_profile",
+	"enabled_classes": [
+		"OS",
+		"InputEvent",
+		"InputEventMIDI",
+		"Node",
+		"AudioServer",
+		"AudioStream",
+		"AudioStreamPlayer",
+		"Engine",
+		"Ref",
+		"SceneTree",
+		"Time",
+		"Resource",
+		"ResourceLoader",
+		"ResourceFormatLoader",
+		"FileAccess"
+	]
+}

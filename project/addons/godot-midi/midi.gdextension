@@ -1,0 +1,38 @@
+[configuration]
+entry_symbol = "midi_library_init"
+compatibility_minimum = "4.7"
+
+[icons]
+
+MIDIListener = "res://addons/godot-midi/icons/midi-port.svg"
+MIDIPlayer = "res://addons/godot-midi/icons/piano.svg"
+
+[libraries]
+
+linux.debug.x86_64 = "binaries/linux.x86_64/libmidi.linux.template_debug.x86_64.so"
+linux.release.x86_64 = "binaries/linux.x86_64/libmidi.linux.template_release.x86_64.so"
+
+windows.debug.x86_64 = "binaries/windows.x86_64/midi.windows.template_debug.x86_64.dll"
+windows.release.x86_64 = "binaries/windows.x86_64/midi.windows.template_release.x86_64.dll"
+
+macos.debug = "binaries/macos.universal/libmidi.macos.template_debug.universal.dylib"
+macos.release = "binaries/macos.universal/libmidi.macos.template_release.universal.dylib"
+
+android.debug.arm32 = "binaries/android.arm32/libmidi.android.template_debug.arm32.so"
+android.release.arm32 = "binaries/android.arm32/libmidi.android.template_release.arm32.so"
+
+android.debug.arm64 = "binaries/android.arm64/libmidi.android.template_debug.arm64.so"
+android.release.arm64 = "binaries/android.arm64/libmidi.android.template_release.arm64.so"
+
+android.debug.x86_32 = "binaries/android.x86_32/libmidi.android.template_debug.x86_32.so"
+android.release.x86_32 = "binaries/android.x86_32/libmidi.android.template_release.x86_32.so"
+
+android.debug.x86_64 = "binaries/android.x86_64/libmidi.android.template_debug.x86_64.so"
+android.release.x86_64 = "binaries/android.x86_64/libmidi.android.template_release.x86_64.so"
+
+ios.arm64 = "binaries/ios.arm64/libmidi.a"
+
+web.debug.threads.wasm32 = "binaries/web.wasm32/libmidi.web.template_debug.wasm32.wasm"
+web.release.threads.wasm32 = "binaries/web.wasm32/libmidi.web.template_release.wasm32.wasm"
+web.debug.wasm32 = "binaries/web.wasm32/libmidi.web.template_debug.wasm32.nothreads.wasm"
+web.release.wasm32 = "binaries/web.wasm32/libmidi.web.template_release.wasm32.nothreads.wasm"

@@ -1,7 +1,24 @@
-# Godot 4+
+# Godot auto generated files
+*.gen.*
 .godot/
 
-# binaries
+# Ignore library files but not the gdextension file
+bin
+binaries
+
+# Ignore scons database
+.sconsign*.dblite
+
+# Ignore custom.py
+custom.py
+
+# Ignore generated compile_commands.json
+compile_commands.json
+
+# Ignore files generated for documentation
+/generated
+
+# Binaries
 *.o
 *.os
 *.so
@@ -19,18 +36,23 @@
 *.idb
 *.exp
 
-# build
+# Python
 __pycache__
-build/
-export/
 
-addons/godot-midi/bin
+# clangd
+.cache
 
-# to let the c++ linter read godot-cpp properly
-# scons compiledb=yes compile_commands.json
-compile_commands.json
+# Other stuff
+*.log
 
-# project
-*.sf2
-*.sf2.uid
-export_presets.cfg
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+
+# Jetbrains
+.idea/
+
+# Cmake
+cmake-build*
+CMakeUserPresets.json
