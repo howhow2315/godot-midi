@@ -1,7 +1,7 @@
 # godot-midi
 
 a godot gdextension for midi support
-originally forked from (nlaha/godot-midi)[https://github.com/nlaha/godot-midi]
+originally forked from [nlaha/godot-midi](https://github.com/nlaha/godot-midi)
 
 #### platforms
 
@@ -15,4 +15,4 @@ originally forked from (nlaha/godot-midi)[https://github.com/nlaha/godot-midi]
 
 # tip
 
-useful alongside (howhow2315/godot-fluidsynth)[https://github.com/howhow2315/godot-fluidsynth] to read and play soundfonts !
+useful alongside [howhow2315/godot-fluidsynth](https://github.com/howhow2315/godot-fluidsynth) to read and play soundfonts !
