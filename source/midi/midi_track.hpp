@@ -37,31 +37,31 @@ protected:
 	static void _bind_methods() {
 		ClassDB::bind_method(D_METHOD("get_time_signature_numerator"), &MIDITrack::get_time_signature_numerator);
 		ClassDB::bind_method(D_METHOD("set_time_signature_numerator", "value"), &MIDITrack::set_time_signature_numerator);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "time_signature_numerator"), "set_time_signature_numerator", "get_time_signature_numerator");
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "time_signature_numerator", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_time_signature_numerator", "get_time_signature_numerator");
 
 		ClassDB::bind_method(D_METHOD("get_time_signature_denominator"), &MIDITrack::get_time_signature_denominator);
 		ClassDB::bind_method(D_METHOD("set_time_signature_denominator", "value"), &MIDITrack::set_time_signature_denominator);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "time_signature_denominator"), "set_time_signature_denominator", "get_time_signature_denominator");
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "time_signature_denominator", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_time_signature_denominator", "get_time_signature_denominator");
 
 		ClassDB::bind_method(D_METHOD("get_clocks_per_tick"), &MIDITrack::get_clocks_per_tick);
 		ClassDB::bind_method(D_METHOD("set_clocks_per_tick", "value"), &MIDITrack::set_clocks_per_tick);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "clocks_per_tick"), "set_clocks_per_tick", "get_clocks_per_tick");
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "clocks_per_tick", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_clocks_per_tick", "get_clocks_per_tick");
 
 		ClassDB::bind_method(D_METHOD("get_num_32nd_notes_per_quarter"), &MIDITrack::get_num_32nd_notes_per_quarter);
 		ClassDB::bind_method(D_METHOD("set_num_32nd_notes_per_quarter", "value"), &MIDITrack::set_num_32nd_notes_per_quarter);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "num_32nd_notes_per_quarter"), "set_num_32nd_notes_per_quarter", "get_num_32nd_notes_per_quarter");
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "num_32nd_notes_per_quarter", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_num_32nd_notes_per_quarter", "get_num_32nd_notes_per_quarter");
 
 		ClassDB::bind_method(D_METHOD("get_sharps_flats"), &MIDITrack::get_sharps_flats);
 		ClassDB::bind_method(D_METHOD("set_sharps_flats", "value"), &MIDITrack::set_sharps_flats);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "sharps_flats"), "set_sharps_flats", "get_sharps_flats");
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "sharps_flats", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_sharps_flats", "get_sharps_flats");
 
 		ClassDB::bind_method(D_METHOD("get_major_minor"), &MIDITrack::get_major_minor);
 		ClassDB::bind_method(D_METHOD("set_major_minor", "value"), &MIDITrack::set_major_minor);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "major_minor"), "set_major_minor", "get_major_minor");
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "major_minor", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_major_minor", "get_major_minor");
 
 		ClassDB::bind_method(D_METHOD("set_events"), &MIDITrack::set_events);
 		ClassDB::bind_method(D_METHOD("get_events"), &MIDITrack::get_events);
-		ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "events", PROPERTY_HINT_ARRAY_TYPE, "MIDIEvent", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_events", "get_events");
+		ADD_PROPERTY(PropertyInfo(Variant::ARRAY, "events", PROPERTY_HINT_ARRAY_TYPE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_events", "get_events");
 	}
 
 public:

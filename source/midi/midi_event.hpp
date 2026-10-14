@@ -16,11 +16,11 @@ protected:
 	static void _bind_methods() {
 		ClassDB::bind_method(D_METHOD("get_channel"), &MIDIEvent::get_channel);
 		ClassDB::bind_method(D_METHOD("set_channel", "channel"), &MIDIEvent::set_channel);
-		ADD_PROPERTY(PropertyInfo(Variant::INT, "channel"), "set_channel", "get_channel");
+		ADD_PROPERTY(PropertyInfo(Variant::INT, "channel", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_channel", "get_channel");
 
 		ClassDB::bind_method(D_METHOD("get_delta"), &MIDIEvent::get_delta);
 		ClassDB::bind_method(D_METHOD("set_delta", "delta"), &MIDIEvent::set_delta);
-		ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "delta"), "set_delta", "get_delta");
+		ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "delta", PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_READ_ONLY), "set_delta", "get_delta");
 	}
 
 	int32_t bytes_used = 0;
