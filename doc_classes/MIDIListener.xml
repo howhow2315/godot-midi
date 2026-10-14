@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDIListener" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		A node that receives MIDI input events through Godot's input system.
+	</brief_description>
+    <description>
+		MIDIListener is a helper node for receiving MIDI input events through Godot's input system.
+
+		Only the current MIDIListener processes MIDI events. When the first listener enters the scene tree, it becomes the current listener automatically. Additional listeners can be made current using [method make_current].
+
+		When the current listener receives an [InputEventMIDI], it emits the [signal midi_event] signal with the event as its argument.
+
+		The listener stops being current when it exits the scene tree if it was the current listener. MIDI input events are ignored by listeners that are not current.
+	</description>
+    <tutorials>
+    </tutorials>
+    <methods>
+        <method name="make_current">
+            <return type="void" />
+            <description>
+				Makes this listener the current MIDI listener. Only the current listener receives and emits MIDI input events.
+			</description>
+        </method>
+        <method name="is_current" qualifiers="const">
+            <return type="bool" />
+            <description>
+				Returns [code]true[/code] if this listener is the current MIDI listener.
+			</description>
+        </method>
+    </methods>
+    <signals>
+        <signal name="midi_event">
+            <param index="0" name="event" type="InputEventMIDI" />
+            <description>
+				Emitted when the current listener receives a MIDI input event.
+			</description>
+        </signal>
+    </signals>
+</class>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDIHeader" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		Stores decoded header information from a Standard MIDI File.
+	</brief_description>
+    <description>
+		MIDIHeader represents the header chunk of a Standard MIDI File (SMF). It stores the file format, the number of tracks, and the timing division used to interpret event delta times.
+
+		The file format determines how tracks are organized. Single-track files contain one track, while the two multi-track formats describe files containing simultaneous tracks or independent sequences.
+
+		The division_type property determines how MIDI ticks are interpreted. In ticks-per-quarter-note mode, [member division] specifies the number of ticks per quarter note. In frames-per-second mode, [member frames_per_second] and [member ticks_per_frame] describe the timing resolution, and [member division] stores their product.
+
+		Use [method parse] to decode a [MIDIChunk] containing a MIDI header. Parsing fails if the chunk is not a header chunk or does not contain the minimum six bytes required for the standard header fields.
+	</description>
+    <tutorials>
+    </tutorials>
+    <methods>
+        <method name="parse">
+            <return type="bool" />
+            <param index="0" name="raw" type="MIDIChunk" />
+            <description>
+				Parses a MIDI header chunk and populates this resource with its decoded values.
+
+				Returns [code]true[/code] if the chunk is a header chunk containing at least six bytes. Returns [code]false[/code] if the chunk has an incorrect type or insufficient data.
+
+				The header contains the file format, track count, and timing division. The division field determines whether timing is expressed in ticks per quarter note or in frames per second with a specified number of ticks per frame.
+			</description>
+        </method>
+    </methods>
+    <members>
+        <member name="file_format" type="int">
+			The MIDI file format. Determines how tracks are organized within the file.
+		</member>
+        <member name="track_count" type="int">
+			The number of tracks declared in the MIDI file header.
+		</member>
+        <member name="division_type" type="int">
+			The timing division mode used to interpret MIDI event delta times. A value of [code]0[/code] indicates ticks per quarter note, while [code]1[/code] indicates frames per second.
+		</member>
+        <member name="division" type="int">
+			The timing resolution. In ticks-per-quarter-note mode, this is the number of ticks per quarter note. In frames-per-second mode, this is the product of [member frames_per_second] and [member ticks_per_frame].
+		</member>
+        <member name="frames_per_second" type="int">
+			The frame rate used for SMPTE-based timing. Populated when [member division_type] is [code]1[/code]. The encoded negative frame-rate value is converted to a positive integer; the special SMPTE value representing approximately 29.97 frames per second is therefore represented as [code]29[/code].
+		</member>
+        <member name="ticks_per_frame" type="int">
+			The number of MIDI ticks per SMPTE frame. Used when [member division_type] is [code]1[/code].
+		</member>
+    </members>
+    <constants>
+        <constant name="SingleTrack" value="0">
+			Format 0: the MIDI file contains a single track.
+		</constant>
+        <constant name="MultipleSimultaneousTracks" value="1">
+			Format 1: the MIDI file contains multiple tracks intended to play simultaneously.
+		</constant>
+        <constant name="MultipleIndependentTracks" value="2">
+			Format 2: the MIDI file contains multiple independent sequences.
+		</constant>
+        <constant name="TicksPerQuarterNote" value="0">
+			Timing is specified as the number of ticks per quarter note. Event timing depends on the MIDI tempo.
+		</constant>
+        <constant name="FramesPerSecond" value="1">
+			Timing is specified using a frame rate and a number of ticks per frame. Event timing is independent of tempo changes.
+		</constant>
+    </constants>
+</class>

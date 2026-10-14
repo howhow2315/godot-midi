@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDIEventNote" inherits="MIDIEvent"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		Represents a MIDI channel voice event.
+	</brief_description>
+    <description>
+		MIDIEventNote represents a MIDI channel voice message, such as a note-on, note-off, controller change, or pitch bend event.
+
+		The event type identifies the message, while the note and data properties store its decoded data bytes. The meaning of these values depends on the event type.
+
+		For note-on and note-off events, note represents the MIDI note number and data represents the velocity. For controller events, note represents the controller number and data represents its value. For program changes, note represents the program number. Other event types interpret these fields according to their MIDI message format.
+	</description>
+    <tutorials>
+    </tutorials>
+    <members>
+        <member name="note" type="int" setter="set_note" getter="get_note" default="0">
+			The first data value of the MIDI message. Its meaning depends on [member event_type], and may represent a note number, controller number, program number, or another message-specific value.
+		</member>
+        <member name="data" type="int" setter="set_data" getter="get_data" default="0">
+			The second data value of the MIDI message, when present. For note-on, note-off, aftertouch, controller, and pitch bend events, this stores the second decoded data byte.
+		</member>
+        <member name="event_type" type="int" setter="set_event_type" getter="get_event_type"
+            default="255">
+			The type of MIDI channel voice message represented by this event. The value corresponds to the status message nibble defined by the MIDI protocol.
+		</member>
+    </members>
+    <constants>
+        <constant name="UNKNOWN" value="255">
+			Unknown or unrecognized MIDI channel voice event type.
+		</constant>
+        <constant name="NOTE_OFF" value="8">
+			Note-off message, indicating that a note should stop playing.
+		</constant>
+        <constant name="NOTE_ON" value="9">
+			Note-on message, indicating that a note should begin playing.
+		</constant>
+        <constant name="AFTERTOUCH" value="10">
+			Polyphonic key pressure message, associated with a specific note.
+		</constant>
+        <constant name="CONTROLLER" value="11">
+			Control change message, used to transmit controller values.
+		</constant>
+        <constant name="PROGRAM_CHANGE" value="12">
+			Program change message, used to select an instrument or program.
+		</constant>
+        <constant name="CHANNEL_PRESSURE" value="13">
+			Channel pressure message, representing pressure applied across a MIDI channel.
+		</constant>
+        <constant name="PITCH_BEND" value="14">
+			Pitch bend message, used to alter pitch.
+		</constant>
+    </constants>
+</class>

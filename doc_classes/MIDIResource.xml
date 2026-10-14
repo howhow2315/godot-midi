@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDIResource" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		Stores a parsed MIDI file, including its header and tracks.
+	</brief_description>
+    <description>
+		MIDIResource represents a Standard MIDI File loaded into memory. It stores the parsed MIDI header in a [MIDIHeader] resource and the parsed track data in an array of [MIDITrack] resources.
+
+		Use [method load_file] to load and parse a MIDI file from a filesystem path. The method reads the file, parses its header, and then parses the number of tracks declared by that header. Unknown chunks encountered before tracks are skipped.
+
+		If the file cannot be opened or a required header or track chunk cannot be parsed, loading fails and an error is returned. Loading a new file clears the previously stored tracks before parsing begins.
+
+		The [member header] and [member tracks] properties expose the parsed MIDI data for inspection and playback.
+
+		Saving is not currently implemented. [method save_file] returns [constant OK] without writing data to disk.
+	</description>
+    <tutorials>
+    </tutorials>
+    <methods>
+        <method name="load_file">
+            <return type="int" enum="Error" />
+            <param index="0" name="path" type="String" />
+            <description>
+				Loads and parses a Standard MIDI File from the specified filesystem path.
+
+				Reads the file contents, parses the MIDI header, and loads the tracks declared in the header. Unknown chunks encountered while searching for track chunks are skipped.
+
+				Returns [constant OK] if loading succeeds. Returns [constant FAILED] if the file cannot be opened, the header cannot be parsed, the file runs out of data while skipping unknown chunks, or a track cannot be parsed.
+
+				Loading a new file clears the existing tracks before parsing begins. If parsing fails, the resource may contain partially updated data.
+			</description>
+        </method>
+        <method name="save_file">
+            <return type="int" enum="Error" />
+            <param index="0" name="path" type="String" />
+            <param index="1" name="resource" type="Resource" />
+            <description>
+				Placeholder for saving a resource to a MIDI file.
+
+				This method is not implemented and currently returns [constant OK] without writing anything to disk. The [param path] and [param resource] arguments are ignored.
+			</description>
+        </method>
+    </methods>
+    <members>
+        <member name="header" type="MIDIHeader" setter="set_header" getter="get_header">
+			The parsed MIDI header, containing the file format, track count, and timing division.
+		</member>
+        <member name="tracks" type="Array" setter="set_tracks" getter="get_tracks">
+			The parsed MIDI tracks, stored as an array of [MIDITrack] resources. The number of tracks loaded from a file is determined by [member header].
+		</member>
+    </members>
+</class>

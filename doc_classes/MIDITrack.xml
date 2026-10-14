@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDITrack" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		Represents a decoded MIDI track containing events and musical signature information.
+	</brief_description>
+    <description>
+		Stores the events parsed from a MIDI track chunk, along with its time signature and key signature.
+
+		Use [method parse] to decode a [MIDIChunk] containing track data. The resulting events are stored in [member events] in the order they appear in the track. Time signature and key signature information are extracted from the corresponding MIDI meta events when present.
+
+		The time signature defaults to 4/4, with 24 clocks per MIDI metronome click and 8 notated 32nd notes per MIDI quarter note. The key signature defaults to C major.
+
+		Parsing stops when an End of Track meta event is encountered or when the available track data has been processed.
+	</description>
+    <tutorials>
+    </tutorials>
+    <methods>
+        <method name="parse">
+            <return type="bool" />
+            <param index="0" name="raw" type="MIDIChunk" />
+            <description>
+				Parses a raw MIDI chunk as a track and appends the decoded events to [member events].
+
+				Extracts time signature and key signature information from the corresponding meta events and updates the track's signature properties when valid data is available.
+
+				Returns [code]false[/code] if [param raw] is not a track chunk. Otherwise, returns [code]true[/code] after processing the available data, including when parsing stops because of malformed or truncated event data.
+
+				Parsing stops when an End of Track meta event is encountered. Existing events are not cleared before parsing, so calling this method multiple times can append additional events to the same track.
+			</description>
+        </method>
+    </methods>
+    <members>
+        <member name="events" type="Array[MIDIEvent]">
+			The MIDI events decoded from the track, stored in their original sequence.
+		</member>
+        <member name="time_signature_numerator" type="int" setter="set_time_signature_numerator"
+            getter="get_time_signature_numerator" default="4">
+			The numerator of the track's time signature. Updated when a valid Time Signature meta event is parsed.
+		</member>
+        <member name="time_signature_denominator" type="int" setter="set_time_signature_denominator"
+            getter="get_time_signature_denominator" default="4">
+			The denominator of the track's time signature. Updated when a valid Time Signature meta event is parsed.
+		</member>
+        <member name="clocks_per_tick" type="int" setter="set_clocks_per_tick"
+            getter="get_clocks_per_tick" default="24">
+			The number of MIDI clock ticks per metronome click, as specified by the time signature meta event.
+		</member>
+        <member name="num_32nd_notes_per_quarter" type="int" setter="set_num_32nd_notes_per_quarter"
+            getter="get_num_32nd_notes_per_quarter" default="8">
+			The number of notated 32nd notes per MIDI quarter note, as specified by the time signature meta event.
+		</member>
+        <member name="sharps_flats" type="int" setter="set_sharps_flats" getter="get_sharps_flats"
+            default="0">
+			The number of sharps or flats in the key signature. Negative values represent flats, positive values represent sharps, and zero represents no sharps or flats.
+		</member>
+        <member name="major_minor" type="int" setter="set_major_minor" getter="get_major_minor"
+            default="0">
+			The mode indicated by the key signature meta event. A value of [code]0[/code] represents major, and a value of [code]1[/code] represents minor.
+		</member>
+    </members>
+</class>

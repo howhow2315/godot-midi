@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDIEventSystem" inherits="MIDIEvent"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		Represents a MIDI system message.
+	</brief_description>
+    <description>
+		MIDIEventSystem represents a MIDI system message, including system common messages, system real-time messages, and system-exclusive messages.
+
+		The event_type property identifies the system message using its MIDI status byte. System messages are not associated with a specific MIDI channel, so the inherited channel property is initialized to 0.
+
+		The event's consumed byte count is tracked internally when the event is constructed from raw MIDI data.
+	</description>
+    <tutorials>
+    </tutorials>
+    <members>
+        <member name="event_type" type="int" setter="set_event_type" getter="get_event_type"
+            default="248">
+			The MIDI system message type, represented by its status byte.
+		</member>
+    </members>
+    <constants>
+        <constant name="SYSTEM_EXCLUSIVE_START" value="240">
+			Beginning of a system-exclusive message.
+		</constant>
+        <constant name="MTC_QUARTER_FRAME" value="241">
+			MIDI Time Code quarter-frame message.
+		</constant>
+        <constant name="SONG_POSITION_POINTER" value="242">
+			Song position pointer message, indicating a position within a MIDI song.
+		</constant>
+        <constant name="SONG_SELECT" value="243">
+			Song select message.
+		</constant>
+        <constant name="TUNE_REQUEST" value="246">
+			Tune request message.
+		</constant>
+        <constant name="SYSTEM_EXCLUSIVE_ESCAPE" value="247">
+			System-exclusive escape or continuation status.
+		</constant>
+        <constant name="TIMING_CLOCK" value="248">
+			Timing clock message.
+		</constant>
+        <constant name="START" value="250">
+			Start message, requesting playback to begin.
+		</constant>
+        <constant name="CONTINUE" value="251">
+			Continue message, requesting playback to resume.
+		</constant>
+        <constant name="STOP" value="252">
+			Stop message.
+		</constant>
+        <constant name="ACTIVE_SENSING" value="254">
+			Active sensing message, used to monitor the continued presence of a MIDI connection.
+		</constant>
+        <constant name="RESET" value="255">
+			System reset message.
+		</constant>
+    </constants>
+</class>

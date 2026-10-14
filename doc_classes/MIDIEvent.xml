@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDIEvent" inherits="Resource" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		Base resource representing a decoded MIDI event.
+	</brief_description>
+    <description>
+		MIDIEvent is the base class for decoded MIDI events. It stores the MIDI channel and the delta time associated with an event.
+
+		The delta value represents the time elapsed since the preceding event in the MIDI track. Its interpretation depends on the timing information stored in the MIDI file.
+
+		This class provides a common interface for channel voice events, system events, and metadata events through its derived classes [MIDIEventNote], [MIDIEventSystem], and [MIDIEventMeta].
+	</description>
+    <tutorials>
+    </tutorials>
+    <members>
+        <member name="channel" type="int" setter="set_channel" getter="get_channel" default="0">
+			The MIDI channel associated with the event. System and metadata events use channel 0.
+		</member>
+        <member name="delta" type="float" setter="set_delta" getter="get_delta" default="0.0">
+			The time elapsed since the preceding event in the track, expressed in the timing units used by the MIDI data.
+		</member>
+    </members>
+</class>

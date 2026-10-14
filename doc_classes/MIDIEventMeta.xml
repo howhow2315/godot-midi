@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<class name="MIDIEventMeta" inherits="MIDIEvent"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+    <brief_description>
+		Represents a MIDI metadata event.
+	</brief_description>
+    <description>
+		MIDIEventMeta represents a metadata event stored in a Standard MIDI File track. Metadata events contain information about the sequence or track, such as its name, lyrics, markers, tempo, time signature, and key signature.
+
+		The event_type property identifies the metadata type, and data contains the decoded metadata payload. event_data_length indicates the number of payload bytes stored in data.
+
+		The meta_data field stores additional decoded information for selected metadata types. Text-based metadata is converted to a string. Time signatures and key signatures are represented as dictionaries, and end-of-track events set meta_data to true. Other metadata types retain their payload in data without additional interpretation.
+
+		Tempo metadata is not converted into a playback tempo value by this class. Consumers such as [MIDIPlayer] are responsible for interpreting tempo changes during playback.
+	</description>
+    <tutorials>
+    </tutorials>
+    <members>
+        <member name="event_type" type="int" setter="set_event_type" getter="get_event_type"
+            default="47">
+			The type of metadata event, identified by its MIDI metadata type byte.
+		</member>
+        <member name="data" type="PackedByteArray" setter="set_data" getter="get_data">
+			The metadata payload, excluding the metadata status byte, type byte, and encoded payload length.
+		</member>
+        <member name="event_data_length" type="int" setter="set_event_data_length"
+            getter="get_event_data_length" default="0">
+			The number of payload bytes stored in [member data].
+		</member>
+    </members>
+    <constants>
+        <constant name="SEQUENCE_NUMBER" value="0">
+			Sequence number metadata.
+		</constant>
+        <constant name="TEXT_EVENT" value="1">
+			Text metadata containing arbitrary text.
+		</constant>
+        <constant name="COPYRIGHT_NOTICE" value="2">
+			Copyright notice metadata.
+		</constant>
+        <constant name="SEQUENCE_OR_TRACK_NAME" value="3">
+			Sequence or track name metadata.
+		</constant>
+        <constant name="INSTRUMENT_NAME" value="4">
+			Instrument name metadata.
+		</constant>
+        <constant name="LYRIC" value="5">
+			Lyric text metadata.
+		</constant>
+        <constant name="MARKER" value="6">
+			Marker metadata identifying a point in the sequence.
+		</constant>
+        <constant name="CUE_POINT" value="7">
+			Cue point metadata.
+		</constant>
+        <constant name="PROGRAM_NAME" value="8">
+			Program name metadata.
+		</constant>
+        <constant name="DEVICE_NAME" value="9">
+			Device name metadata.
+		</constant>
+        <constant name="ARTIST_NAME" value="10">
+			Artist name metadata.
+		</constant>
+        <constant name="END_OF_TRACK" value="47">
+			End-of-track marker.
+		</constant>
+        <constant name="SET_TEMPO" value="81">
+			Tempo metadata. Its payload conventionally contains a three-byte value specifying microseconds per quarter note.
+		</constant>
+        <constant name="SMPTE_OFFSET" value="84">
+			SMPTE time offset metadata.
+		</constant>
+        <constant name="TIME_SIGNATURE" value="88">
+			Time signature metadata. The decoded dictionary contains the numerator, denominator, clocks per metronome click, and number of 32nd notes per quarter note.
+		</constant>
+        <constant name="KEY_SIGNATURE" value="89">
+			Key signature metadata. The decoded dictionary contains the number of sharps or flats and whether the key is major or minor.
+		</constant>
+    </constants>
+</class>

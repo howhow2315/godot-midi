@@ -1,0 +1,173 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="MIDIPlayer" inherits="Node" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://raw.githubusercontent.com/godotengine/godot/master/doc/class.xsd">
+	<brief_description>
+		Plays MIDI events along a timeline and optionally synchronizes playback with audio streams.
+	</brief_description>
+	<description>
+		MIDIPlayer is a node that plays events from a [MIDIResource] according to their timing in the MIDI timeline. It emits signals for MIDI events and metadata, and can optionally synchronize playback with linked [AudioStreamPlayer] nodes.
+
+		Playback can be started, stopped, paused, resumed, and looped. The playback speed can be adjusted using [member speed_scale]. When looping is enabled, playback restarts automatically after the MIDI timeline finishes.
+
+		The [member current_time] property represents the playback position in seconds. Changing it seeks to the specified position and also seeks linked audio players.
+
+		The [member midi] property specifies the MIDI resource to play. Assigning a resource builds the playback timeline and prepares a cache of note events for time-range queries.
+
+		Use [method link_audio_stream_player] to link audio players to the MIDI timeline. When valid audio streams are linked, the player uses the longest linked stream as its playback clock when that stream is playing.
+
+		The [member auto_stop] property determines whether linked audio players are stopped when MIDI playback is stopped or finishes without looping.
+
+		The [member note_offset] property adjusts the time range used by note-query methods without changing the actual playback timeline.
+
+		Playback is processed independently of the main thread. Signals generated during playback are dispatched using thread-safe calls, while playback completion and loop restarts are handled on the main thread.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+		<method name="play">
+			<return type="void" />
+			<description>
+				Starts playback of the assigned MIDI resource from the beginning. Resets the playback position and event index before starting a playback thread.
+
+				If an existing playback thread is still joinable, it is stopped and joined before a new one is created. If no MIDI resource is assigned, a warning is generated and playback does not start.
+
+				Linked audio players are started before the MIDI playback clock begins.
+			</description>
+		</method>
+		<method name="stop">
+			<return type="void" />
+			<description>
+				Stops MIDI playback and waits for the playback thread to finish. Resets the playback position and event index.
+
+				If [member auto_stop] is [code]true[/code], linked audio players are also stopped. If no MIDI resource is assigned, this method returns without changing the playback state.
+			</description>
+		</method>
+		<method name="pause">
+			<return type="void" />
+			<description>
+				Pauses playback if it is currently playing. Linked audio players are also paused.
+
+				If playback is not active, this method does nothing.
+			</description>
+		</method>
+		<method name="resume">
+			<return type="void" />
+			<description>
+				Resumes playback if it is currently paused. Linked audio players are also unpaused.
+
+				If playback is not paused, this method does nothing.
+			</description>
+		</method>
+		<method name="link_audio_stream_player">
+			<return type="void" />
+			<param index="0" name="audio_stream_player" type="Array" />
+			<description>
+				Links an array of [AudioStreamPlayer] nodes to the MIDI playback timeline.
+
+				Entries that are not [AudioStreamPlayer] nodes, have no assigned stream, or use streams with non-positive lengths are ignored. The longest valid stream is used as the audio playback clock when it is playing.
+
+				If no valid audio players are found, a warning is generated. Linking audio players does not connect their [signal AudioStreamPlayer.finished] signals; MIDI timeline completion determines when playback finishes.
+			</description>
+		</method>
+		<method name="process_delta">
+			<return type="void" />
+			<param index="0" name="delta" type="float" />
+			<description>
+				Advances the MIDI playback timeline by the specified time interval in seconds and dispatches all events whose scheduled times have been reached.
+
+				Negative time intervals are treated as zero, and intervals greater than 0.1 seconds are capped at 0.1 seconds. The playback speed is applied when determining which events are due.
+
+				MIDI metadata events emit the [signal meta] signal, while other supported MIDI events emit the [signal event] signal. When all scheduled events have been dispatched, playback completion is requested.
+			</description>
+		</method>
+		<method name="get_notes_in_range">
+			<return type="Array" />
+			<param index="0" name="start_time" type="float" />
+			<param index="1" name="end_time" type="float" />
+			<description>
+				Returns an array of [InputEventMIDI] objects representing note-on and note-off events within the specified time range, in seconds.
+
+				If [param start_time] is greater than [param end_time], the values are swapped. [member note_offset] is subtracted from both bounds before querying the cached MIDI note events.
+
+				Only note-on and note-off events are included when building the note cache. Events that cannot be converted to [InputEventMIDI] are omitted.
+			</description>
+		</method>
+		<method name="get_notes_around">
+			<return type="Array" />
+			<param index="0" name="time" type="float" />
+			<param index="1" name="window_before" type="float" />
+			<param index="2" name="window_after" type="float" />
+			<description>
+				Returns an array of [InputEventMIDI] objects representing note-on and note-off events around the specified time.
+
+				The query covers the interval from [param time] minus [param window_before] to [param time] plus [param window_after], in seconds. The result is produced using [method get_notes_in_range].
+			</description>
+		</method>
+		<method name="midi_event_to_input_event" qualifiers="const">
+			<return type="InputEventMIDI" />
+			<param index="0" name="event" type="MIDIEvent" />
+			<description>
+				Converts a supported [MIDIEvent] into an [InputEventMIDI].
+
+				Supported note events include note off, note on, aftertouch, controller changes, program changes, channel pressure, and pitch bend. Supported system events include MIDI time code quarter frame, song position pointer, song select, tune request, timing clock, start, continue, stop, active sensing, and system reset.
+
+				Metadata events, unsupported event types, invalid event objects, and note or system events that cannot be converted return [code]null[/code].
+			</description>
+		</method>
+		<method name="set_current_time">
+			<return type="void" />
+			<param index="0" name="value" type="float" />
+			<description>
+				Sets the playback position in seconds and updates the index of the next MIDI event to dispatch.
+
+				The position is clamped to zero or greater. Events scheduled at or before the corresponding playback time, accounting for [member speed_scale], are skipped.
+
+				If audio players are linked, their playback positions are also changed to the specified time. If no MIDI resource is assigned, the playback position and event index are reset to zero.
+			</description>
+		</method>
+	</methods>
+	<members>
+		<member name="midi" type="MIDIResource" setter="set_midi" getter="get_midi">
+			The MIDI resource to play. Assigning a resource resets the playback position, clears the existing playback timeline and note cache, and builds new event and note caches. Assigning [code]null[/code] clears the prepared playback data.
+		</member>
+		<member name="current_time" type="float" setter="set_current_time" getter="get_current_time">
+			The current playback position in seconds. Setting this property seeks within the MIDI timeline and updates the position of linked audio players.
+		</member>
+		<member name="loop" type="bool" setter="set_loop" getter="get_loop" default="false">
+			If [code]true[/code], playback restarts automatically when the MIDI timeline finishes. If [code]false[/code], playback ends and the playback position is reset.
+		</member>
+		<member name="speed_scale" type="float" setter="set_speed_scale" getter="get_speed_scale" default="1.0">
+			The playback speed multiplier. A value of [code]1.0[/code] represents normal speed, values greater than [code]1.0[/code] increase playback speed, and values between zero and [code]1.0[/code] decrease it. Values less than or equal to zero are clamped to [code]0.001[/code].
+		</member>
+		<member name="auto_stop" type="bool" setter="set_auto_stop" getter="get_auto_stop" default="true">
+			If [code]true[/code], linked audio players are stopped when MIDI playback is stopped or finishes without looping. If [code]false[/code], they are not automatically stopped at those points.
+		</member>
+		<member name="note_offset" type="float" setter="set_note_offset" getter="get_note_offset" default="0.0">
+			An offset in seconds applied to note-query time ranges. This property affects [method get_notes_in_range] and [method get_notes_around], but does not change the playback clock.
+		</member>
+	</members>
+	<signals>
+		<signal name="finished">
+			<description>
+				Emitted when the MIDI playback timeline finishes, before playback is restarted if [member loop] is [code]true[/code].
+			</description>
+		</signal>
+		<signal name="event">
+			<param index="0" name="event" type="MIDIEvent" />
+			<param index="1" name="track" type="int" />
+			<description>
+				Emitted when a non-metadata MIDI event is reached during playback.
+
+				[event] is the MIDI event, and [param track] is the zero-based index of the track containing the event in the assigned MIDI resource.
+			</description>
+		</signal>
+		<signal name="meta">
+			<param index="0" name="event" type="MIDIEventMeta" />
+			<param index="1" name="track" type="int" />
+			<description>
+				Emitted when a MIDI metadata event is reached during playback.
+
+				[event] is the metadata event, and [param track] is the zero-based index of the track containing the event in the assigned MIDI resource.
+			</description>
+		</signal>
+	</signals>
+</class>
